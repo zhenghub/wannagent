@@ -1,0 +1,2 @@
+# wannagent
+a agent written by scala
