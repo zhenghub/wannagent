@@ -18,10 +18,10 @@ import java.io.OutputStream
  */
 object TestBackRequest extends App {
     val test = "GET HTTP://www.baidu.com/ HTTP/1.1\r\n" +
-        "User-Agent: curl/7.37.1\r\n" +
-        "Host: www.baidu.com\r\n" +
-        "Accept: */*\r\n" +
-        "Proxy-Connection: Keep-Alive\r\n\r\n"
+      "User-Agent: curl/7.37.1\r\n" +
+      "Host: www.baidu.com\r\n" +
+      "Accept: */*\r\n" +
+      "Proxy-Connection: Keep-Alive\r\n\r\n"
 
     import Main._
     {

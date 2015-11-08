@@ -21,8 +21,8 @@ import Main.{ select, Address }
 import scala.actors.Actor
 
 /**
- * @author zh
- */
+  * @author zh
+  */
 object TestFrontRequest extends App {
 
     val port = 36446
@@ -71,7 +71,7 @@ object TestFrontRequest extends App {
 
         import Debug._
         listen4Request _ start
-        
+
         val client = new Thread {
             override def run() {
                 val processBuilder: ProcessBuilder = s"""curl http://www.baidu.com -x localhost:${port}"""
