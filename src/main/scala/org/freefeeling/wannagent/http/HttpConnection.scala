@@ -5,7 +5,6 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 import scala.collection.mutable.ArrayBuffer
 import collection.mutable.{ Map => MapBuffer }
-import com.sun.org.apache.xalan.internal.xsltc.trax.OutputSettings
 import java.io.OutputStream
 import java.io.OutputStreamWriter
 

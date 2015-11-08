@@ -18,7 +18,7 @@ class ChannelInputStream(val channel: SocketChannel, val cacheSize: Int = 4096) 
     def read: Int = {
         if (empty) {
             fill()
-            if (finished == 0)
+            if (finished <= 0)
                 return -1
             pos = 0
         }

@@ -5,7 +5,7 @@ import java.io.InputStream
 /**
  * @author zh
  */
-class CombinStreams(val ins: InputStream *) extends InputStream{
+class CombinedStreams(val ins: InputStream*) extends InputStream {
     
     val streamIter = ins.iterator
     var in: InputStream = streamIter.next()

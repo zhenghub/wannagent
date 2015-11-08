@@ -2,33 +2,34 @@ package org.freefeeling.wannagent
 
 import java.net.ServerSocket
 import java.net.Socket
-import org.freefeeling.wannagent.http.HttpConnection
-import com.sun.net.httpserver.spi.HttpServerProvider
 import java.net.InetAddress
 import java.net.InetSocketAddress
-import com.sun.net.httpserver.HttpHandler
-import com.sun.net.httpserver.HttpExchange
 import java.nio.channels.ServerSocketChannel
 import java.nio.channels.Selector
 import java.nio.channels.SelectionKey
 import java.nio.channels.SocketChannel
 import java.nio.ByteBuffer
-import org.freefeeling.wannagent.http.HttpHeader
-import scala.collection.convert.decorateAsScala._
+import com.typesafe.scalalogging.Logger
+import com.typesafe.scalalogging.slf4j.Logger
+import com.typesafe.scalalogging.{Logger, Logging}
+import http.{HttpHeader, HttpConnection}
+import org.slf4j.LoggerFactory
+import scala.collection.convert.decorateAsScala.mapAsScalaConcurrentMapConverter
 import java.util.concurrent.ConcurrentHashMap
 import scala.collection.concurrent
 import java.nio.channels.WritableByteChannel
 import java.nio.channels.ReadableByteChannel
 import java.nio.channels.Channels
-import java.io.OutputStream
-import java.io.InputStream
-import com.sun.xml.internal.messaging.saaj.util.ByteInputStream
-import java.io.ByteArrayInputStream
+import java.io.{IOException, OutputStream, InputStream, ByteArrayInputStream}
+
+import scala.concurrent.Future
+import scala.util.{Failure, Success, Try}
+import scala.concurrent.ExecutionContext.Implicits.global
 
 /**
  * @author zhenghu
  */
-object Main extends App {
+object Main extends App with Logging {
 
     println("hello world");
     val port = 9999
@@ -54,10 +55,21 @@ object Main extends App {
         var reads = 0
         while ({ reads = in.read(buffer); reads > 0 }) {
             buffer.flip()
-            chnl.write(buffer)
+            Try(chnl.write(buffer)) recover {
+                case e: IOException =>
+                    logger.error("back request can't write", e)
+                    in.close()
+                    out.close()
+                    return
+            }
             buffer.flip()
         }
-        while ({ val size = chnl.read(buffer); size > -1 }) {
+
+        while (
+            Try(chnl.read(buffer) > -1) recover {
+                case e: IOException => logger.error("back request can't read", e); false
+            } get
+        ) {
             buffer.flip()
             out.write(buffer)
             buffer.flip()
@@ -75,10 +87,9 @@ object Main extends App {
         val frontSelector = Selector.open()
         val backSelector = Selector.open()
         serverChannel.register(frontSelector, SelectionKey.OP_ACCEPT)
-        val channelMap: concurrent.Map[SocketChannel, Channel] = new ConcurrentHashMap().asScala
+        val channelMap: concurrent.Map[SocketChannel, Channel] = new ConcurrentHashMap[SocketChannel, Channel]().asScala
 
         case class Channel(val client: SocketChannel, val remoteHost: String, val remotePort: Int)
-        import scala.collection.JavaConversions.asScalaSet
 
         def listen4Request() {
             def frontSelect(key: SelectionKey) {
@@ -93,16 +104,17 @@ object Main extends App {
                     key.channel() match {
                         case conn: SocketChannel =>
                             val connInput = new ChannelInputStream(conn)
-                            val header = HttpHeader.readHeader(connInput)
-                            val in  = new CombinStreams(new ByteArrayInputStream(header.toBytes()), connInput)
-                            request(new InetSocketAddress(header.host, header.port), in, conn)
-//                            val target = SocketChannel.open()
-//                            target.configureBlocking(false)
-//                            target.register(backSelector, SelectionKey.OP_CONNECT)
-//                            target.connect(new InetSocketAddress(header.host, header.port))
-//                            val channel = Channel(conn, header.host, header.port)
-//                            channelMap(target) = channel
-//                            Debug.printInputStream(connInput)
+                            Try(HttpHeader.readHeader(connInput)) match {
+                                case Success(header) =>
+                                    val in = new CombinedStreams(new ByteArrayInputStream(header.toBytes()), connInput)
+                                    Future {
+                                        request(new InetSocketAddress(header.host, header.port), in, conn)
+                                    } onFailure {
+                                        case e => logger.error(s"process request to (${header.host}, ${header.port})error", e)
+                                    }
+                                case Failure(e) =>
+                                    logger.debug("a front request error", e)
+                            }
                         case _ =>
 
                     }
@@ -142,4 +154,5 @@ object Main extends App {
 
     run()
 
+    val logger = Logger(LoggerFactory getLogger getClass.getName)
 }
