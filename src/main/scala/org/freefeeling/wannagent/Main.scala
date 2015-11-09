@@ -30,8 +30,9 @@ import scala.concurrent.ExecutionContext.Implicits.global
  * @author zhenghu
  */
 object Main extends App with Logging {
+    val logger = Logger(LoggerFactory getLogger getClass.getName)
 
-    println("hello world");
+    logger.info("hello world");
     val port = 9999
 
     def select(selector: Selector, func: (SelectionKey) => Unit) {
@@ -99,11 +100,15 @@ object Main extends App with Logging {
                             val conn = server.accept()
                             conn.configureBlocking(false)
                             conn.register(frontSelector, SelectionKey.OP_READ)
+                            logger.debug("new socket connected: " + conn.getRemoteAddress);
+                        case other =>
+                            logger.debug("unkown channel connected: " + other)
                     }
                 } else if (key.isReadable()) {
                     key.channel() match {
                         case conn: SocketChannel =>
                             val connInput = new ChannelInputStream(conn)
+                            logger.debug(s"socket ${conn.getRemoteAddress} is readable")
                             Try(HttpHeader.readHeader(connInput)) match {
                                 case Success(header) =>
                                     val in = new CombinedStreams(new ByteArrayInputStream(header.toBytes()), connInput)
@@ -115,8 +120,8 @@ object Main extends App with Logging {
                                 case Failure(e) =>
                                     logger.debug("a front request error", e)
                             }
-                        case _ =>
-
+                        case ch =>
+                            logger.debug("unkown readable channel" + ch)
                     }
                 }
             }
@@ -154,5 +159,4 @@ object Main extends App with Logging {
 
     run()
 
-    val logger = Logger(LoggerFactory getLogger getClass.getName)
 }

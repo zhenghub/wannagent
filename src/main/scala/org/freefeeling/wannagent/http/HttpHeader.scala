@@ -1,5 +1,8 @@
 package org.freefeeling.wannagent.http
 
+import com.typesafe.scalalogging.slf4j.Logger
+import org.slf4j.LoggerFactory
+
 import scala.collection.mutable.ArrayBuffer
 import collection.mutable.Map
 import com.sun.org.apache.xalan.internal.xsltc.trax.OutputSettings
@@ -15,6 +18,8 @@ import java.io.ByteArrayOutputStream
  */
 
 object HttpHeader {
+    val logger = Logger(LoggerFactory getLogger getClass.getName)
+
     def printChar(char: Char) {
         char match {
             case '\r' => print("""\r""")
@@ -30,12 +35,11 @@ object HttpHeader {
         var duringHeader = true
         val properties = Map[String, String]()
         var keySepPos: Int = -1
-        def read = { val ch = connReader.read(); if (ch > -1) printChar(ch.toChar); ch }
-        var char = read
+        var char = connReader.read()
         while (duringHeader && char > -1) {
             char match {
                 case '\r' =>
-                    char = read
+                    char = connReader.read()
                     if (char == '\n') {
                         header += sb.toString()
                         if (keySepPos > -1) {
@@ -57,9 +61,12 @@ object HttpHeader {
                     sb += char.toChar
             }
             if (duringHeader)
-                char = read
+                char = connReader.read()
         }
-        println(properties)
+        logger.debug(header map {
+            _ + """\r\n"""
+        } mkString "\n")
+        logger.debug(properties.toString())
         new HttpHeader(header, properties)
     }
 }
