@@ -19,14 +19,6 @@ import java.io.ByteArrayOutputStream
 
 object HttpHeader {
     val logger = Logger(LoggerFactory getLogger getClass.getName)
-
-    def printChar(char: Char) {
-        char match {
-            case '\r' => print("""\r""")
-            case '\n' => println("""\n""")
-            case _    => print(char.toChar)
-        }
-    }
     
     def readHeader(in: InputStream) = {
         val connReader = new InputStreamReader(in)
@@ -63,10 +55,10 @@ object HttpHeader {
             if (duringHeader)
                 char = connReader.read()
         }
-        logger.debug(header map {
+        logger.debug("header:\n" + (header map {
             _ + """\r\n"""
-        } mkString "\n")
-        logger.debug(properties.toString())
+        } mkString "\n"))
+        logger.debug("parsed properties:\n" + properties.toString())
         new HttpHeader(header, properties)
     }
 }

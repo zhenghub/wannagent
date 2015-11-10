@@ -119,6 +119,8 @@ object Main extends App with Logging {
                                     }
                                 case Failure(e) =>
                                     logger.debug("a front request error", e)
+                                    key.cancel()
+                                    conn.close()
                             }
                         case ch =>
                             logger.debug("unkown readable channel" + ch)
