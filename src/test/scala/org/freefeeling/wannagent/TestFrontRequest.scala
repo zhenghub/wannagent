@@ -61,7 +61,7 @@ object TestFrontRequest extends App {
                 }
             }
             try {
-                select(frontSelector, frontSelect _)
+                select(frontSelector)(frontSelect _)
             } catch {
                 case ResultException(host, port) =>
                     address = Address(host, port)

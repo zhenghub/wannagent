@@ -9,10 +9,12 @@ import java.nio.channels.Selector
 import java.nio.channels.SelectionKey
 import java.nio.channels.SocketChannel
 import java.nio.ByteBuffer
+import javax.net.ssl.SSLSocketFactory
 import com.typesafe.scalalogging.Logger
 import com.typesafe.scalalogging.slf4j.Logger
 import com.typesafe.scalalogging.{Logger, Logging}
 import http.{HttpHeader, HttpConnection}
+import org.freefeeling.wannagent.TestHttps
 import org.slf4j.LoggerFactory
 import scala.collection.convert.decorateAsScala.mapAsScalaConcurrentMapConverter
 import java.util.concurrent.ConcurrentHashMap
@@ -30,12 +32,12 @@ import scala.concurrent.ExecutionContext.Implicits.global
  * @author zhenghu
  */
 object Main extends App with Logging {
-    val logger = Logger(LoggerFactory getLogger getClass.getName)
+    val logger = Logger(LoggerFactory getLogger "stdout")
 
     logger.info("hello world");
     val port = 9999
 
-    def select(selector: Selector, func: (SelectionKey) => Unit) {
+    def select(selector: Selector)(func: (SelectionKey) => Unit) {
         while (true) {
             selector.select()
             val itr = selector.selectedKeys().iterator()
@@ -47,16 +49,30 @@ object Main extends App with Logging {
         }
     }
 
-    def request(address: InetSocketAddress, in: ReadableByteChannel, out: WritableByteChannel) {
-        val chnl = SocketChannel.open()
-        chnl.connect(address)
+    def request(address: InetSocketAddress, inc: ReadableByteChannel, out: WritableByteChannel) {
+        val socket = address.getPort match {
+            case 443 =>
+                val sslFactory = SSLSocketFactory.getDefault()
+                sslFactory.createSocket(address.getHostName, 443)
+            case _ =>
+                val s = new Socket()
+                s.connect(address)
+                s
+        }
+        val ous = Channels.newChannel(socket.getOutputStream)
         val size = 1024
         val buffer = ByteBuffer.allocate(size)
 
+        val sous = Channels.newChannel(System.out)
         var reads = 0
+        var in = Channels.newChannel(new ByteArrayInputStream(TestHttps.msg2.getBytes))
         while ({ reads = in.read(buffer); reads > 0 }) {
             buffer.flip()
-            Try(chnl.write(buffer)) recover {
+            val buf = new Array[Byte](buffer.remaining())
+            buffer.get(buf, 0, buf.length);
+            sous.write(ByteBuffer.wrap(buf))
+
+            Try(ous.write(ByteBuffer.wrap(buf))) recover {
                 case e: IOException =>
                     logger.error("back request can't write", e)
                     in.close()
@@ -66,13 +82,20 @@ object Main extends App with Logging {
             buffer.flip()
         }
 
+        val ins = Channels.newChannel(socket.getInputStream)
+
         while (
-            Try(chnl.read(buffer) > -1) recover {
+            Try(ins.read(buffer) > -1) recover {
                 case e: IOException => logger.error("back request can't read", e); false
             } get
         ) {
             buffer.flip()
-            out.write(buffer)
+            val buf = new Array[Byte](buffer.remaining())
+            buffer.get(buf, 0, buf.length);
+
+            out.write(ByteBuffer.wrap(buf))
+            sous.write(ByteBuffer.wrap(buf))
+            //            out.write(buffer)
             buffer.flip()
         }
     }
@@ -127,7 +150,7 @@ object Main extends App with Logging {
                     }
                 }
             }
-            select(frontSelector, frontSelect _)
+            select(frontSelector)(frontSelect _)
         }
 
         def ask4Data() {
@@ -150,7 +173,7 @@ object Main extends App with Logging {
 
                 }
             }
-            select(backSelector, backSelect _)
+            select(backSelector)(backSelect _)
         }
         implicit def func2Thread(func: => Unit) =
             new Thread {
