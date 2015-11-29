@@ -14,7 +14,6 @@ import com.typesafe.scalalogging.Logger
 import com.typesafe.scalalogging.slf4j.Logger
 import com.typesafe.scalalogging.{Logger, Logging}
 import http.{HttpHeader, HttpConnection}
-import org.freefeeling.wannagent.TestHttps
 import org.slf4j.LoggerFactory
 import scala.collection.convert.decorateAsScala.mapAsScalaConcurrentMapConverter
 import java.util.concurrent.ConcurrentHashMap
@@ -49,6 +48,16 @@ object Main extends App with Logging {
         }
     }
 
+    var msg2 = "GET https://github.com/ HTTP/1.1\r\n" +
+      "Host: github.com\r\n" +
+      "User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:39.0) Gecko/20100101 Firefox/39.0\r\n" +
+      "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\n" +
+      "Accept-Language: zh-CN,zh;q=0.8,en-US;q=0.5,en;q=0.3\nAccept-Encoding: gzip, deflate\r\n" +
+      "Cookie: logged_in=no; _ga=GA1.2.1112653799.1425278990; _octo=GH1.1.135954816.1425278991\r\n" +
+      "Connection: keep-alive\r\n" +
+      "Cache-Control: max-age=0\r\n" +
+      "\r\n"
+
     def request(address: InetSocketAddress, inc: ReadableByteChannel, out: WritableByteChannel) {
         val socket = address.getPort match {
             case 443 =>
@@ -65,7 +74,7 @@ object Main extends App with Logging {
 
         val sous = Channels.newChannel(System.out)
         var reads = 0
-        var in = Channels.newChannel(new ByteArrayInputStream(TestHttps.msg2.getBytes))
+        var in = Channels.newChannel(new ByteArrayInputStream(msg2.getBytes))
         while ({ reads = in.read(buffer); reads > 0 }) {
             buffer.flip()
             val buf = new Array[Byte](buffer.remaining())
