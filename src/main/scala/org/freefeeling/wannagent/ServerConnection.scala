@@ -9,13 +9,14 @@ import akka.io.Tcp.Received
 import akka.io.{IO, Tcp}
 import akka.remote.transport.ThrottlerTransportAdapter.Direction.Receive
 import akka.util.ByteString
-import org.freefeeling.wannagent.http.SimpleHttpRequest
+import org.freefeeling.wannagent.http.HttpRequestWithOrigin
 
 /**
   * Created by zh on 15-12-13.
   */
 class RemoteConnection(client: ActorRef, addr: InetSocketAddress) extends Actor{
   import RemoteConnection._
+  import context.system
   IO(Tcp) ! Tcp.Connect(addr)
 
   var server: ActorRef = _
@@ -23,7 +24,7 @@ class RemoteConnection(client: ActorRef, addr: InetSocketAddress) extends Actor{
     case connected : Tcp.Connected =>
       client ! connected
       this.server = sender()
-    case request: SimpleHttpRequest =>
+    case request: HttpRequestWithOrigin =>
       this.server ! request.origin
     case Received(data) =>
       this.client ! Response(data)

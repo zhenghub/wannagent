@@ -7,8 +7,8 @@ import akka.actor.Actor.Receive
 import akka.io.{Tcp, IO}
 import akka.io.Tcp.{Write, Connected, Received}
 import akka.util.ByteString
-import org.freefeeling.wannagent.http.{HttpConnection, SimpleHttpRequest, SimpleHttpRequestParser}
-import spray.can.Http
+import org.freefeeling.wannagent.http.HttpRequestWithOrigin
+import spray.can.parsing.HttpRequestParser
 import spray.http._
 import spray.http.parser.HttpParser
 
@@ -16,15 +16,16 @@ import spray.http.parser.HttpParser
   * Created by zh on 15-12-13.
   */
 class ProxyConnection extends Actor {
-  var request: SimpleHttpRequest = _
+  var request: HttpRequestWithOrigin = _
   var client: ActorRef = _
   implicit val system = context.system
+  val parser = HttpRequestParser(system.settings.config)
 
   override def receive: Receive = {
     case Received(data) =>
-      val request = SimpleHttpRequestParser.parse(data)
+      request = parser.parseRequest(data)
       request match {
-        case SimpleHttpRequest(_, method, uri, headers, _, _) =>
+        case HttpRequestWithOrigin(_, HttpRequest(method, uri, headers, _, _)) =>
           println(s"request for ${method} ${uri}")
           headers.find(header => header.name == "Host") match {
             case None =>
