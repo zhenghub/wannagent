@@ -24,6 +24,6 @@ class HttpsPipeline extends Actor{
 
 object HttpsPipeline{
 
-  val connectedResponse = "HTTP/1.0 200 Connection established\r\nProxy-agent: wannagent-proxy/1.1\r\n\r\n"
+
   def apply = Props(classOf[HttpsPipeline])
 }
