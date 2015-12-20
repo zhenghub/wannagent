@@ -3,61 +3,92 @@ package org.freefeeling.wannagent
 import java.net.InetSocketAddress
 
 import akka.actor.{ActorRef, Props, Actor}
-import akka.actor.Actor.Receive
 import akka.io.{Tcp, IO}
-import akka.io.Tcp.{Write, Connected, Received}
-import akka.util.ByteString
-import org.freefeeling.wannagent.http.HttpRequestWithOrigin
-import spray.can.parsing.HttpRequestParser
+import akka.io.Tcp.{PeerClosed, Write, Connected, Received}
 import spray.http._
-import spray.http.parser.HttpParser
+import org.log4s._
 
 /**
   * Created by zh on 15-12-13.
   */
 class ProxyConnection extends Actor {
-  var request: HttpRequestWithOrigin = _
+  val logger = getLogger(getClass)
   var client: ActorRef = _
+  var requestCount = 0
   var remote: Option[ActorRef] = None
   implicit val system = context.system
 
-  import ProxyConnection._
+  val parser = new RequestParser(system.settings.config)
 
-  val parser = HttpRequestParser(system.settings.config)
-
-  override def receive: Receive = {
-    case Received(data) =>
-      remote match {
-        case None =>
-        request = parser.parseRequest(data)
-        request match {
-          case HttpRequestWithOrigin(_, HttpRequest(method, uri, headers, _, _)) =>
-            println(s"request for ${method} ${uri}")
-            headers.find(header => header.name == "Host") match {
-              case None =>
-                throw new RuntimeException("no host found")
-              case Some(host) =>
-                val addr = host.value.split(":")
-                val (h, p) = if (addr.length < 2) (addr(0), 80) else (addr(0), addr(1).toInt)
-                this.remote = Option(context.actorOf(RemoteConnection(self, new InetSocketAddress(h, p))))
-            }
-            this.request = request
-            this.client = sender()
+  def extractMethodAndHost(request: HttpRequestWithOrigin) = {
+    request match {
+      case HttpRequestWithOrigin(_, HttpRequest(method, uri, headers, _, _)) =>
+        logger.debug(s"request for ${method} ${uri}")
+        this.client = sender()
+        headers.find(header => header.name == "Host") match {
+          case None =>
+            throw new RuntimeException("no host found")
+          case Some(host) =>
+            val addr = host.value.split(":")
+            val (h, p) = if (addr.length < 2) (addr(0), 80) else (addr(0), addr(1).toInt)
+            (request.request.method, new InetSocketAddress(h, p))
         }
-        case Some(remote) =>
-          remote ! HttpRequestWithOrigin(data, null)
+    }
+  }
+
+  /**
+    * parse the first request and decide what kind of connection to use to connect the target server
+    * @return
+    */
+  def selectConnectionType: Receive = {
+    case Received(data) =>
+      requestCount += 1
+      logger.debug(s"${self.path} processing ${requestCount} request")
+      this.client = sender()
+      val request = parser.parseRequest(data)
+      val method = request.method
+      val address = request.host
+      remote = method match {
+        case HttpMethods.CONNECT =>
+          Option(context.actorOf(SecureRemoteConnection(self, address)))
+        case _ =>
+          Option(context.actorOf(RemoteConnection(self, address, request)))
       }
-    case Tcp.Connected(remote, _) =>
-      if (this.request.request.method == HttpMethods.CONNECT) {
-        this.client ! Write(ByteString(connectedResponse(this.request.request.protocol)))
-      } else {
-        sender() ! this.request
-      }
+      context.become(forwardMessage)
+    case PeerClosed =>
+      handleclose
+    case msg =>
+      logger.warn(s"unkown message ${msg}")
+  }
+
+  def handleclose = {
+    context stop self
+    logger.debug(s"close connection ${self.path}")
+    context.become(close)
+  }
+
+  /**
+    * send to the remote connection the request from the client;
+    * send back to the client the response fetched by the remote connection
+    * @return
+    */
+  def forwardMessage: Receive = {
+    case Received(data) =>
+      this.remote.get ! HttpRequestWithOrigin(data, null)
     case response: RemoteConnection.Response =>
       this.client ! Write(response.origin)
+    case PeerClosed =>
+      handleclose
     case msg =>
-      println(msg)
+      logger.warn(s"unkown message ${msg}")
   }
+
+  def close: Receive = {
+    case msg =>
+      logger.warn(s"closing while received a message ${msg}")
+  }
+
+  override def receive: Receive = selectConnectionType
 }
 
 object ProxyConnection {

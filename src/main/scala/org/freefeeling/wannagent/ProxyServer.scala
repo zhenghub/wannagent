@@ -7,29 +7,34 @@ import akka.actor.{Props, Actor, ActorSystem}
 import akka.io.Tcp._
 import akka.io.{Tcp, IO}
 import spray.can.Http
+import org.log4s._
 
 /**
   * Created by zh on 15-12-13.
   */
 class ProxyServer(addr: InetSocketAddress) extends Actor {
+  val logger = getLogger(getClass)
 
   import context.system
 
   IO(Tcp) ! Tcp.Bind(self, addr)
+  var id = 0L
 
   def receive = {
     case b@Bound(localAddress) =>
-      println(s"bound to ${localAddress}")
+      logger.info(s"wannagent server bound to ${localAddress}")
     case CommandFailed(bf: Bind) =>
-      println(s"bound failed ${bf}")
+      logger.error(s"bound failed ${bf}")
       context stop self
     case c@Connected(remote, local) =>
-      println(s"connected from ${remote}")
-      val handler = context.actorOf(ProxyConnection())
+      val handler = context.actorOf(ProxyConnection(), "con_" + id)
+      logger.info(s"create a new connection ${handler.path} from ${remote}")
+      logger.debug(s"current connection count: ${context.children.size}")
+      id += 1
       val connection = sender()
       connection ! Register(handler)
     case msg =>
-      println(msg)
+      logger.warn(s"unkown message ${msg}")
   }
 }
 

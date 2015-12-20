@@ -2,7 +2,7 @@ package spray.can.parsing
 
 import akka.util.ByteString
 import com.typesafe.config.Config
-import org.freefeeling.wannagent.http.HttpRequestWithOrigin
+import org.freefeeling.wannagent.HttpRequestWithOrigin
 import spray.can.parsing.Result.Emit
 import spray.can.server.ServerSettings
 import spray.http.HttpRequest
