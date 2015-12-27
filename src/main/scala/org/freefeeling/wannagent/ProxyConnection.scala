@@ -8,6 +8,8 @@ import akka.io.Tcp.{PeerClosed, Write, Connected, Received}
 import spray.http._
 import org.log4s._
 
+import scala.util.{Failure, Success, Try}
+
 /**
   * Created by zh on 15-12-13.
   */
@@ -44,8 +46,14 @@ class ProxyConnection extends Actor {
     case Received(data) =>
       requestCount += 1
       logger.debug(s"${self.path} processing ${requestCount} request")
+      logger.debug(s"receive a connection request\n${data.utf8String}")
       this.client = sender()
-      val request = parser.parseRequest(data)
+      val request = Try(parser.parseRequest(data)) match {
+        case Success(request) => request
+        case Failure(e) =>
+          logger.error(e)("parse request error")
+          throw e
+      }
       val method = request.method
       val address = request.host
       remote = method match {

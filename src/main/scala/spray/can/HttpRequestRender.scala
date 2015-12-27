@@ -21,7 +21,7 @@ class HttpRequestRender(requestHeaderSizeHint: Int) extends RequestRenderingComp
     rendering.get.toByteString
   }
 
-  override def userAgent: Option[`User-Agent`] = ???
+  override def userAgent: Option[`User-Agent`] = None
 
   override def chunklessStreaming: Boolean = ???
 }

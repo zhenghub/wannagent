@@ -22,7 +22,7 @@ class ProxyServer(addr: InetSocketAddress) extends Actor {
 
   def receive = {
     case b@Bound(localAddress) =>
-      logger.info(s"wannagent server bound to ${localAddress}")
+      logger.info(s"---------------- wannagent server bound to ${localAddress} ------------------")
     case CommandFailed(bf: Bind) =>
       logger.error(s"bound failed ${bf}")
       context stop self

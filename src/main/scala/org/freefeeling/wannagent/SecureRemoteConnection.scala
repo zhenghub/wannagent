@@ -23,6 +23,7 @@ class SecureRemoteConnection (proxy: ActorRef, addr: InetSocketAddress) extends 
     case connected : Tcp.Connected =>
       this.server = sender()
       this.server ! Tcp.Register(self)
+      logger.debug(s"create a new connection ${self.path} to ${addr}")
       this.proxy ! connectedResponse
     case request: HttpRequestWithOrigin =>
       this.server ! Tcp.Write(request.origin)

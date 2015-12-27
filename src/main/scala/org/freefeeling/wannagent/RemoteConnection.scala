@@ -58,7 +58,7 @@ class RemoteConnection(proxy: ActorRef, private var addr: InetSocketAddress, pri
           uri = absoluteUri.toRelative
 //          headers = (origin.request.headers ::: `Cache-Control`(Seq(`max-age`(0))) :: Nil)
         )
-        val render = HttpRequestRender(context.system.settings.config)
+        val render = RequestRender(context.system.settings.config)
         render.renderRequest(newRequest, addr)
       case None =>
         origin.origin
@@ -70,14 +70,13 @@ class RemoteConnection(proxy: ActorRef, private var addr: InetSocketAddress, pri
       val ensuredRequest = if(request.request == null) request.copy(request = parser.parseRequest(request.origin).request) else request
       // some times a browser like firefox may change remote server within the same connection
       if(ensuredRequest.host != addr) {
-        logger.warn(s"remote connection ${self.path} chaging address from ${addr} to ${ensuredRequest.host}")
+        logger.warn(s"remote connection ${self.path} changing address from ${addr} to ${ensuredRequest.host}")
         this.server ! Tcp.Close
         addr = ensuredRequest.host
         IO(Tcp) ! Tcp.Connect(addr)
         firstRequest = request
         context.become(connect)
       } else {
-        logger.debug(s"origin request ${request.origin.utf8String}")
         val newRequest = handleRequest(ensuredRequest)
         //      val newRequest = request.origin
         logger.debug(s"sending request to ${addr} by ${self.path}\n${newRequest.utf8String}")
