@@ -2,7 +2,6 @@ package org.freefeeling.wannagent
 
 import akka.util.ByteString
 import com.typesafe.config.Config
-import spray.can.parsing.HttpRequestParser
 import spray.http.HttpHeaders.RawHeader
 import spray.http._
 
