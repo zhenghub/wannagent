@@ -13,8 +13,7 @@ import org.log4s._
   * Created by zh on 15-12-13.
   */
 class ProxyServer(addr: InetSocketAddress) extends Actor {
-  val logger = getLogger(getClass)
-
+  import ProxyServer.logger
   import context.system
 
   IO(Tcp) ! Tcp.Bind(self, addr)
@@ -22,7 +21,7 @@ class ProxyServer(addr: InetSocketAddress) extends Actor {
 
   def receive = {
     case b@Bound(localAddress) =>
-      logger.info(s"---------------- wannagent server bound to ${localAddress} ------------------")
+      logger.info(s"wannagent server bound to ${localAddress}")
     case CommandFailed(bf: Bind) =>
       logger.error(s"bound failed ${bf}")
       context stop self
@@ -40,12 +39,15 @@ class ProxyServer(addr: InetSocketAddress) extends Actor {
 
 object ProxyServer {
 
+  val logger = getLogger(getClass)
   def apply(addr: InetSocketAddress) = Props(classOf[ProxyServer], addr)
 
   def main(args: Array[String]) {
+    logger.info("----------------- starting wannagent -----------------")
+    logger.info(s"classpath: ${System.getProperty("java.class.path")}")
     implicit val as = ActorSystem("proxy")
     val addr = new InetSocketAddress(as.settings.config.getString("wannagent.proxy.host"), as.settings.config.getInt("wannagent.proxy.port"))
     as.actorOf(ProxyServer(addr))
-    println("wannagent running")
+    logger.info("wannagent running")
   }
 }

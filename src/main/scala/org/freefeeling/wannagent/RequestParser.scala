@@ -76,7 +76,7 @@ class StateRequestParser(coded: ByteString) {
           case 0 =>
             method = HttpMethods.getForKey(prop.toUpperCase()).get
           case 1 =>
-            uri = Uri(prop)
+            uri = Uri.from(path = if(method == HttpMethods.CONNECT) "/" else prop)
           case 2 =>
             protocol = HttpProtocols.getForKey(prop.toUpperCase).get
           case _ =>

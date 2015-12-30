@@ -4,7 +4,7 @@ import java.net.InetSocketAddress
 
 import akka.actor.{ActorRef, Props, Actor}
 import akka.io.{Tcp, IO}
-import akka.io.Tcp.{PeerClosed, Write, Connected, Received}
+import akka.io.Tcp._
 import spray.http._
 import org.log4s._
 
@@ -86,6 +86,9 @@ class ProxyConnection extends Actor {
     case response: RemoteConnection.Response =>
       this.client ! Write(response.origin)
     case PeerClosed =>
+      handleclose
+    case e:ErrorClosed =>
+      logger.error(s"error closed ${e}")
       handleclose
     case msg =>
       logger.warn(s"unkown message ${msg}")
