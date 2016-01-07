@@ -76,7 +76,10 @@ class StateRequestParser(coded: ByteString) {
           case 0 =>
             method = HttpMethods.getForKey(prop.toUpperCase()).get
           case 1 =>
-            uri = Uri.from(path = if(method == HttpMethods.CONNECT) "/" else prop)
+            if(method == HttpMethods.CONNECT) {
+              headers = headers :+ RawHeader("Host", prop)
+            }
+            uri = if(method == HttpMethods.CONNECT) Uri.from(path = "/") else Uri(prop)
           case 2 =>
             protocol = HttpProtocols.getForKey(prop.toUpperCase).get
           case _ =>
@@ -120,7 +123,10 @@ class StateRequestParser(coded: ByteString) {
       @tailrec def parse(coded: ByteString, idx: Int): Unit = {
         coded(idx) match {
           case ':' =>
-            headers = RawHeader(trim(coded, start, idx), trim(coded, idx + 1, lineEnd)) :: headers
+            val prop = trim(coded, start, idx)
+            if(method != HttpMethods.CONNECT || prop != "Host") {
+              headers = headers :+ RawHeader(prop, trim(coded, idx + 1, lineEnd))
+            }
             return
           case _ =>
             parse(coded, idx + 1)

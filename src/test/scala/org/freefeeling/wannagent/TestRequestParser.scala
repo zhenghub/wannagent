@@ -22,6 +22,22 @@ class TestRequestParser extends WordSpec {
   def connectRequest =
     """|CONNECT 0.gravatar.com:443 HTTP/1.1""".stripMargin
 
+  def noPortHttpsConnRequest =
+  """CONNECT www.baidu.com:443 HTTP/1.1
+    |Host: www.baidu.com
+    |Proxy-Connection: keep-alive
+    |User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/38.0.2125.122 Safari/537.36 SE 2.X MetaSr 1.0""".stripMargin
+
+  def youku = """GET http://youku.com/ HTTP/1.1
+                |Host: youku.com
+                |User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:43.0) Gecko/20100101 Firefox/43.0
+                |Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
+                |Accept-Language: zh-CN,zh;q=0.8,en-US;q=0.5,en;q=0.3
+                |Accept-Encoding: gzip, deflate
+                |Connection: keep-alive
+                |Pragma: no-cache
+                |Cache-Control: no-cache""".stripMargin
+
   def readRequest(request: String) = request.lines.mkString("\r\n") + "\r\n\r\n"
 
   def mockRequest(testExample: String) = ByteString(readRequest(testExample))
@@ -45,6 +61,13 @@ class TestRequestParser extends WordSpec {
         val bytes = mockRequest(connectRequest)
         val request = new RequestParser(null).parseRequest(bytes)
         assert(request.request.uri.toRelative == Uri./)
+      }
+      "get the host in connect line" in {
+        val bytes = mockRequest(noPortHttpsConnRequest)
+        val request = new RequestParser(null).parseRequest(bytes)
+        assert(request.host == new InetSocketAddress("www.baidu.com", 443))
+
+        assert(new RequestParser(null).parseRequest(mockRequest(youku)).host == new InetSocketAddress("youku.com", 80))
       }
     }
   }

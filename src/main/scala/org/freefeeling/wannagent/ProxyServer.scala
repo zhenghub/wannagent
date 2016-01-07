@@ -46,7 +46,11 @@ object ProxyServer {
     logger.info("----------------- starting wannagent -----------------")
     logger.info(s"classpath: ${System.getProperty("java.class.path")}")
     implicit val as = ActorSystem("proxy")
-    val addr = new InetSocketAddress(as.settings.config.getString("wannagent.proxy.host"), as.settings.config.getInt("wannagent.proxy.port"))
+    val addr = as.settings.config.getString("wannagent.proxy.host") match {
+      case "*" => new InetSocketAddress(as.settings.config.getInt("wannagent.proxy.port"))
+      case host =>
+        new InetSocketAddress(host, as.settings.config.getInt("wannagent.proxy.port"))
+    }
     as.actorOf(ProxyServer(addr))
     logger.info("wannagent running")
   }

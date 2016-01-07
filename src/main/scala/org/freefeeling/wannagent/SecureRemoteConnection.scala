@@ -26,6 +26,7 @@ class SecureRemoteConnection (proxy: ActorRef, addr: InetSocketAddress) extends 
       logger.debug(s"create a new connection ${self.path} to ${addr}")
       this.proxy ! connectedResponse
     case request: HttpRequestWithOrigin =>
+      logger.debug(s"send request from ${proxy}")
       this.server ! Tcp.Write(request.origin)
     case Received(data) =>
       logger.debug(s"recieved response from ${addr}")
