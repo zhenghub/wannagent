@@ -3,13 +3,20 @@ package org.freefeeling.wannagent
 import akka.util.ByteString
 import com.typesafe.config.Config
 import spray.http.HttpHeaders.RawHeader
-import spray.http._
+import spray.http.{HttpRequest => dhr, _}
 
 import scala.annotation.tailrec
 
 /**
   * Created by zh on 15-12-20.
   */
+case class HttpRequest(method: HttpMethod = HttpMethods.GET,
+                       uri: Uri = Uri./,
+                       headers: List[HttpHeader] = Nil,
+                       entity: HttpEntity = HttpEntity.Empty,
+                       protocol: HttpProtocol = HttpProtocols.`HTTP/1.1`)
+
+
 class RequestParser(config: Config) {
 //  val parser = HttpRequestParser(config)
 
@@ -17,7 +24,7 @@ class RequestParser(config: Config) {
 //    parser.parseRequest(coded)
     val res = new StateRequestParser(coded)
     res.parseRequest()
-    HttpRequestWithOrigin(coded, HttpRequest(res.method, res.uri, res.headers, res.entity, res.protocol))
+    HttpRequestWithOrigin(coded, org.freefeeling.wannagent.HttpRequest(res.method, res.uri, res.headers, res.entity, res.protocol))
   }
 }
 
@@ -79,7 +86,7 @@ class StateRequestParser(coded: ByteString) {
             if(method == HttpMethods.CONNECT) {
               headers = headers :+ RawHeader("Host", prop)
             }
-            uri = if(method == HttpMethods.CONNECT) Uri.from(path = "/") else Uri(prop)
+            uri = if(method == HttpMethods.CONNECT) Uri./ else Uri(prop)
           case 2 =>
             protocol = HttpProtocols.getForKey(prop.toUpperCase).get
           case _ =>
@@ -125,7 +132,13 @@ class StateRequestParser(coded: ByteString) {
           case ':' =>
             val prop = trim(coded, start, idx)
             if(method != HttpMethods.CONNECT || prop != "Host") {
-              headers = headers :+ RawHeader(prop, trim(coded, idx + 1, lineEnd))
+              val newHeader = prop match {
+                case "Proxy-Connection" =>
+                  RawHeader("Connection", trim(coded, idx + 1, lineEnd))
+                case _ =>
+                  RawHeader(prop, trim(coded, idx + 1, lineEnd))
+              }
+              headers = headers :+ newHeader
             }
             return
           case _ =>

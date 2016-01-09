@@ -38,6 +38,17 @@ class TestRequestParser extends WordSpec {
                 |Pragma: no-cache
                 |Cache-Control: no-cache""".stripMargin
 
+  def youkuPlay = """GET http://yk.pp.navi.youku.com/playpolicy/get.json?vid_encode=XMTQzOTQzMzM2MA==&category=85&caller=PLAYER HTTP/1.1
+                    |Host: yk.pp.navi.youku.com
+                    |Proxy-Connection: keep-alive
+                    |User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/47.0.2526.106 Safari/537.36
+                    |X-Requested-With: ShockwaveFlash/20.0.0.228
+                    |Accept: */*
+                    |Referer: http://v.youku.com/v_show/id_XMTQzOTQzMzM2MA==.html?f=26496693&ev=1
+                    |Accept-Encoding: gzip, deflate, sdch
+                    |Accept-Language: zh-CN,zh;q=0.8
+                    |Cookie: __ysuid=1452303949866EJK; isAppearLoginGuide=true; ykss=53669056839c7a1013edb30b; __ali=1452303959237l4t; advideo206014_2=1; advideo206025_2=1; advideo206026_2=2; __aliCount=1; xreferrer=http://www.youku.com/; premium_cps_vid=XMTQzOTQzMzM2MA%3D%3D; u=__LOGOUT__""".stripMargin
+
   def readRequest(request: String) = request.lines.mkString("\r\n") + "\r\n\r\n"
 
   def mockRequest(testExample: String) = ByteString(readRequest(testExample))
@@ -61,6 +72,8 @@ class TestRequestParser extends WordSpec {
         val bytes = mockRequest(connectRequest)
         val request = new RequestParser(null).parseRequest(bytes)
         assert(request.request.uri.toRelative == Uri./)
+
+        new RequestParser(null).parseRequest(mockRequest(youkuPlay))
       }
       "get the host in connect line" in {
         val bytes = mockRequest(noPortHttpsConnRequest)

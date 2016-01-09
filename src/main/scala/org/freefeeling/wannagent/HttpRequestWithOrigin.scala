@@ -3,7 +3,7 @@ package org.freefeeling.wannagent
 import java.net.InetSocketAddress
 
 import akka.util.ByteString
-import spray.http._
+import spray.http.{HttpRequest => dhr, _}
 
 /**
   * Created by zh on 15-12-13.
