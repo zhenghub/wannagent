@@ -7,7 +7,7 @@ import scala.util.parsing.combinator.RegexParsers
 /**
   * Created by zh on 16-1-9.
   */
-class Uri(scheme: Option[String], host: Option[String], path: Option[String], args: Option[String]) {
+class Uri(val scheme: Option[String], val host: Option[String], val path: Option[String], val args: Option[String]) {
 
   def toRelative =
     Uri(None, None, if (path.isEmpty) Option("/") else path, args)
@@ -20,7 +20,7 @@ object Uri {
   val / = Uri(None, None, Option("/"), None)
 
   val scheme = """(?<sc>http)"""
-  val uriPattern = Pattern.compile(s"""(${scheme}://(?<host>.*?))(?<path>/[^?]*)(\\?(?<args>.*))?""")
+  val uriPattern = Pattern.compile(s"""((${scheme}://)?(?<host>[^/]*))(?<path>/[^?]*)?(\\?(?<args>.*))?""")
   class UriParser{
     def parse(text: String) = {
       val m = uriPattern.matcher(text)
