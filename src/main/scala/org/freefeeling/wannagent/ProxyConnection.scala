@@ -73,8 +73,7 @@ class ProxyConnection extends Actor {
   }
 
   def handleclose = {
-    context stop self
-    logger.debug(s"close connection ${self.path}")
+    this.client ! Close
     context.become(close)
   }
 
@@ -94,14 +93,16 @@ class ProxyConnection extends Actor {
       logger.error(s"error closed ${e}")
       handleclose
     case CommandFailed(Write(resp, ack)) =>
-      logger.error(s"send response back to client ${client} failed")
-      sender ! Write(resp)
-      logger.info(s"retrying send response back to client ${client}")
+      logger.error(s"send response back to client ${client} failed: ${ack}")
+      handleclose
     case msg =>
       logger.warn(s"unkown message ${msg} from ${sender()}")
   }
 
   def close: Receive = {
+    case _: ConnectionClosed =>
+      context stop self
+      logger.info(s"closing connextion ${self.path}")
     case msg =>
       logger.warn(s"closing while received a message ${msg}")
   }
