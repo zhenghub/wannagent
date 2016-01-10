@@ -95,6 +95,8 @@ class ProxyConnection extends Actor {
       handleclose
     case CommandFailed(Write(resp, ack)) =>
       logger.error(s"send response back to client ${client} failed")
+      sender ! Write(resp)
+      logger.info(s"retrying send response back to client ${client}")
     case msg =>
       logger.warn(s"unkown message ${msg} from ${sender()}")
   }

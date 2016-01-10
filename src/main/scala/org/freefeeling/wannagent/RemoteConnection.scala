@@ -37,18 +37,6 @@ class RemoteConnection(proxy: ActorRef, private var addr: InetSocketAddress, pri
       context.become(transfer)
   }
 
-  def test = {
-    ByteString("GET /s?wd=b&rsv_bp=0&inputT=3659 HTTP/1.1\r\n" +
-      "Host: www.baidu.com\r\n" +
-      "User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:43.0) Gecko/20100101 Firefox/43.0\r\n" +
-      "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\n" +
-      "Accept-Language: zh-CN,zh;q=0.8,en-US;q=0.5,en;q=0.3\r\n" +
-      "Accept-Encoding: gzip, deflate\r\n" +
-      "Referer: http://www.baidu.com/\r\n" +
-      "Cookie: BAIDUID=75DA9210F6CC4F79EC42877BEDB35E32:FG=1; BIDUPSID=75DA9210F6CC4F79EC42877BEDB35E32; PSTM=1449665938; PSLOSTID=1034\r\n" +
-      "Connection: keep-alive\r\n\r\n")
-  }
-
   val parser = new RequestParser(system.settings.config)
 
   def handleRequest(origin: HttpRequestWithOrigin) = {
