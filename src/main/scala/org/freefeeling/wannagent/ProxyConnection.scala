@@ -102,9 +102,9 @@ class ProxyConnection extends Actor {
   def close: Receive = {
     case _: ConnectionClosed =>
       context stop self
-      logger.info(s"closing connextion ${self.path}")
+      logger.info(s"closing connection ${self.path}")
     case msg =>
-      logger.warn(s"closing while received a message ${msg}")
+      logger.warn(s"received a message while closing: ${msg}")
   }
 
   override def receive: Receive = selectConnectionType

@@ -71,7 +71,7 @@ class RemoteConnection(proxy: ActorRef, private var addr: InetSocketAddress, pri
         this.server ! Tcp.Write(newRequest)
       }
     case Received(data) =>
-      logger.debug(s"recieved response from ${addr} \n ${data.slice(0, 500).utf8String}")
+      logger.debug(s"recieved response from ${addr}(${data.size}) \n ${data.slice(0, 1000).utf8String}")
       this.proxy ! Response(data)
   }
 
