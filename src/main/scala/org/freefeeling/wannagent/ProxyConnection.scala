@@ -64,6 +64,7 @@ class ProxyConnection extends Actor {
       }
       context.become(forwardMessage)
     case PeerClosed =>
+      logger.info(s"peer closed ${self}")
       handleclose
     case e: ErrorClosed =>
       logger.error(s"error closed ${e}")
@@ -88,13 +89,15 @@ class ProxyConnection extends Actor {
     case response: RemoteConnection.Response =>
       this.client ! Write(response.origin)
     case PeerClosed =>
+      logger.info(s"peer closed ${self}")
       handleclose
     case e: ErrorClosed =>
       logger.error(s"error closed ${e}")
       handleclose
     case CommandFailed(Write(resp, ack)) =>
       logger.error(s"send response back to client ${client} failed: ${ack}")
-      handleclose
+      this.client ! Write(resp)
+      logger.info("retrying send response to client")
     case msg =>
       logger.warn(s"unkown message ${msg} from ${sender()}")
   }
