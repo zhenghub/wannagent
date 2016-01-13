@@ -100,7 +100,7 @@ class ProxyConnection extends Actor {
       handleclose
     case CommandFailed(Write(resp, ack)) =>
       logger.error(s"send response back to client ${client} failed: ${ack}")
-      this.client ! Write(resp)
+      this.client ! Write(resp, Ack)
       logger.info("retrying send response to client")
     case msg =>
       logger.warn(s"unkown message ${msg} from ${sender()}")
