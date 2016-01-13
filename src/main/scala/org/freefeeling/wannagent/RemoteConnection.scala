@@ -5,10 +5,11 @@ import java.net.InetSocketAddress
 import akka.actor.Actor.Receive
 import akka.actor.{Stash, ActorRef, Props, Actor}
 import akka.actor.Actor.Receive
-import akka.io.Tcp.{Close, Write, Register, Received}
+import akka.io.Tcp._
 import akka.io.{IO, Tcp}
 import akka.remote.transport.ThrottlerTransportAdapter.Direction.Receive
 import akka.util.ByteString
+import org.freefeeling.wannagent.ProxyConnection.Ack
 import org.log4s._
 import spray.can.HttpRequestRender
 import spray.http.CacheDirectives.`max-age`
@@ -24,7 +25,7 @@ class RemoteConnection(proxy: ActorRef, private var addr: InetSocketAddress, pri
   import context.system
 
   val logger = getLogger(getClass)
-  IO(Tcp) ! Tcp.Connect(addr)
+  IO(Tcp) ! Tcp.Connect(addr, pullMode = true)
 
   var server: ActorRef = _
 
@@ -61,7 +62,7 @@ class RemoteConnection(proxy: ActorRef, private var addr: InetSocketAddress, pri
         logger.warn(s"remote connection ${self.path} changing address from ${addr} to ${ensuredRequest.host}")
         this.server ! Tcp.Close
         addr = ensuredRequest.host
-        IO(Tcp) ! Tcp.Connect(addr)
+        IO(Tcp) ! Tcp.Connect(addr, pullMode = true)
         firstRequest = request
         context.become(connect)
       } else {
@@ -69,7 +70,10 @@ class RemoteConnection(proxy: ActorRef, private var addr: InetSocketAddress, pri
         //      val newRequest = request.origin
         logger.debug(s"sending request to ${addr} by ${self.path}\n${newRequest.utf8String}")
         this.server ! Tcp.Write(newRequest)
+        this.server ! ResumeReading
       }
+    case Ack =>
+      this.server ! ResumeReading
     case Received(data) =>
       logger.debug(s"recieved response from ${addr}(${data.size}) \n ${data.slice(0, 1000).utf8String}")
       this.proxy ! Response(data)

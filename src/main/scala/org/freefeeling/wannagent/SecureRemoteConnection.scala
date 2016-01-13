@@ -3,9 +3,10 @@ package org.freefeeling.wannagent
 import java.net.InetSocketAddress
 
 import akka.actor.{Actor, Props, ActorRef}
-import akka.io.Tcp.Received
+import akka.io.Tcp.{ResumeReading, Received}
 import akka.io.{IO, Tcp}
 import akka.util.ByteString
+import org.freefeeling.wannagent.ProxyConnection.Ack
 import org.freefeeling.wannagent.RemoteConnection.Response
 import org.log4s._
 
@@ -16,7 +17,7 @@ class SecureRemoteConnection (proxy: ActorRef, addr: InetSocketAddress) extends 
   import SecureRemoteConnection._
   import context.system
   val logger = getLogger(getClass)
-  IO(Tcp) ! Tcp.Connect(addr)
+  IO(Tcp) ! Tcp.Connect(addr, pullMode = true)
 
   var server: ActorRef = _
   override def receive: Receive = {
@@ -28,6 +29,9 @@ class SecureRemoteConnection (proxy: ActorRef, addr: InetSocketAddress) extends 
     case request: HttpRequestWithOrigin =>
       logger.debug(s"send request from ${proxy}")
       this.server ! Tcp.Write(request.origin)
+      this.server ! ResumeReading
+    case Ack =>
+      this.server ! ResumeReading
     case Received(data) =>
       logger.debug(s"recieved response from ${addr}")
       this.proxy ! Response(data)

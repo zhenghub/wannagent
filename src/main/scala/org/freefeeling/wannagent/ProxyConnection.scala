@@ -5,6 +5,8 @@ import java.net.InetSocketAddress
 import akka.actor.{ActorRef, Props, Actor}
 import akka.io.{Tcp, IO}
 import akka.io.Tcp._
+import akka.util.ByteString
+import org.freefeeling.wannagent.ProxyConnection.Ack
 import spray.http._
 import org.log4s._
 
@@ -74,8 +76,8 @@ class ProxyConnection extends Actor {
   }
 
   def handleclose = {
-    this.client ! Close
-    context.become(close)
+    context stop self
+    logger.info(s"closing connection ${self.path}")
   }
 
   /**
@@ -86,8 +88,10 @@ class ProxyConnection extends Actor {
   def forwardMessage: Receive = {
     case Received(data) =>
       this.remote.get ! HttpRequestWithOrigin(data, null)
+    case Ack =>
+      this.remote.get ! Ack
     case response: RemoteConnection.Response =>
-      this.client ! Write(response.origin)
+      this.client ! Write(response.origin, Ack)
     case PeerClosed =>
       logger.info(s"peer closed ${self}")
       handleclose
@@ -124,4 +128,7 @@ object ProxyConnection {
   }
 
   def apply() = Props(classOf[ProxyConnection])
+
+  object Ack extends Event
+
 }
