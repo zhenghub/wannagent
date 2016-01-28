@@ -2,8 +2,6 @@ package org.freefeeling.wannagent
 
 import java.util.regex.Pattern
 
-import scala.util.parsing.combinator.RegexParsers
-
 /**
   * Created by zh on 16-1-9.
   */

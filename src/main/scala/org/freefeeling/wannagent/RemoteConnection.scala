@@ -2,19 +2,12 @@ package org.freefeeling.wannagent
 
 import java.net.InetSocketAddress
 
-import akka.actor.Actor.Receive
 import akka.actor.{Stash, ActorRef, Props, Actor}
-import akka.actor.Actor.Receive
 import akka.io.Tcp._
 import akka.io.{IO, Tcp}
-import akka.remote.transport.ThrottlerTransportAdapter.Direction.Receive
 import akka.util.ByteString
 import org.freefeeling.wannagent.ProxyConnection.Ack
 import org.log4s._
-import spray.can.HttpRequestRender
-import spray.http.CacheDirectives.`max-age`
-import spray.http.HttpHeader
-import spray.http.HttpHeaders.`Cache-Control`
 
 /**
   * Created by zh on 15-12-13.
