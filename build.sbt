@@ -4,6 +4,8 @@ scalaVersion := "2.11.7"
 
 val sprayVersion = "1.3.3"
 
+val k = settingKey[File]("test file")
+
 val dependencies = Seq(
   "com.typesafe.akka" %% "akka-actor" % "2.4.1",
   "org.scalatest" %% "scalatest" % "2.2.4" % Test,
@@ -14,3 +16,7 @@ val dependencies = Seq(
 )
 
 libraryDependencies ++= dependencies
+
+k := baseDirectory.value / "conf"
+
+resourceDirectories in Compile += k.value
