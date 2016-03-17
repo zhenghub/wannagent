@@ -1,7 +1,8 @@
 package org.freefeeling.wannagent
 
 import akka.util.ByteString
-import org.freefeeling.wannagent.ReverseProxy.{Msg, ClientId}
+import org.freefeeling.wannagent.distributed.Msg
+import org.freefeeling.wannagent.distributed.Msgs.ClientId
 import org.scalatest.WordSpec
 import scala.pickling.shareNothing._
 import scala.pickling.static._
