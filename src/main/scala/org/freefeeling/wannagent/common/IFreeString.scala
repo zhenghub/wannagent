@@ -12,7 +12,7 @@ trait IFreeString {
   def toInetSocketAddress = {
     val sa = str.split(':')
     val port = if(str.length > 1) sa(1).toInt else 80
-    val host = if(str(0) == "*") "0.0.0.0" else sa(0)
+    val host = if(sa(0) == "*") "0.0.0.0" else sa(0)
     new InetSocketAddress(host, port)
   }
 

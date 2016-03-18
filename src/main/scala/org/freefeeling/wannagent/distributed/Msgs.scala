@@ -25,6 +25,6 @@ object Msgs {
   case class ClientId(host: String) extends Msg
   case class ClientConnect(port: Int) extends Msg
 
-  case class Tunnel(hostId: String, clientPort: Int, id: Long) extends Msg
+  case class Tunnel(hostId: String, clientHost: String, clientPort: Int, id: Long) extends Msg
 
 }

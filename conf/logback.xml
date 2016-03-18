@@ -20,8 +20,16 @@
             <Pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36}:%L - %msg%n</Pattern>
         </layout>
     </appender>
+    <appender name="akkaAppender" class="ch.qos.logback.core.ConsoleAppender">
+        <layout class="ch.qos.logback.classic.PatternLayout">
+            <pattern>lb-akka %date{ISO8601} %-5level %X{sourceThread} %X{akkaSource} - %msg%n</pattern>
+        </layout>
+    </appender>
     <root level="DEBUG">
         <appender-ref ref="STDOUT" />
         <appender-ref ref="FILE" />
     </root>
+    <logger name="akka://*" level="DEBUG" additivity="false">
+        <appender-ref ref="akkaAppender"/>
+    </logger>
 </configuration>

@@ -14,7 +14,7 @@ import com.typesafe.config.{Config, ConfigFactory}
 import org.freefeeling.wannagent.ClientSide.ClientMaster
 import org.freefeeling.wannagent.ReverseProxy.{ServerData, ClientData, PortMap}
 import org.freefeeling.wannagent.ServerSide.ServerController
-import org.freefeeling.wannagent.common.{AkkaUtil, MapList}
+import org.freefeeling.wannagent.common.{TreeCli, AkkaUtil, MapList}
 import org.freefeeling.wannagent.distributed.{Msgs, Msg}
 import org.freefeeling.wannagent.distributed.Msgs._
 import scala.concurrent.Await
@@ -28,17 +28,20 @@ import akka.pattern._
 /**
   * Created by zhenghu on 16-3-12.
   */
+
+
 object ReverseProxy {
 
   case class ClientData(data: ByteString)
 
   case class ServerData(data: ByteString)
 
-  case class PortMap(remoteHost: String, remotePort: Int, localHost: String, localPort: Int) {
+  case class PortMap(hostId: String, remoteHost: String, remotePort: Int, localHost: String, localPort: Int) {
     def localAddr = s"${localHost}:${localPort}"
   }
 
-  class Logging extends Actor with ActorLogging {
+  class Logging extends Actor {
+    val log = Logging(context.system.eventStream, "akka")
     override def receive: Actor.Receive = {
       case Error(cause, logSource, logClass, message) =>
         val causeString = {
@@ -49,11 +52,15 @@ object ReverseProxy {
           builder.result()
         }.utf8String
         log.info(s"(${Option(causeString).getOrElse("unkown cause")}, ${Option(logSource).getOrElse("ukown logsource")}, ${Option(logClass).map(_.getName).getOrElse("unkown logClass")}, ${Option(message).map(_.toString).getOrElse("unkown message")}, ${System.currentTimeMillis()})")
+      case u: UnhandledMessage =>
+        log.info(s"unhandledMessage: ${u}")
     }
   }
 
   def monitor(as: ActorSystem): Unit = {
-    as.eventStream.subscribe(as.actorOf(Props(classOf[Logging]), "monitor"), classOf[Logging.Error])
+    val logger = as.actorOf(Props(classOf[Logging]), "monitor")
+    as.eventStream.subscribe(logger, classOf[Logging.Error])
+    as.eventStream.subscribe(logger, classOf[UnhandledMessage])
   }
 
   def startServer(config: Config): Unit = {
@@ -65,8 +72,8 @@ object ReverseProxy {
     import scala.collection.convert.wrapAsScala._
     val map = config.getObject("portMap").entrySet().map { e =>
       val Array(lh, lp) = e.getKey.split(":")
-      val Array(rh, rp) = e.getValue.unwrapped().asInstanceOf[String].split(":")
-      PortMap(rh, rp.toInt, lh, lp.toInt)
+      val Array(hostId, rh, rp) = e.getValue.unwrapped().asInstanceOf[String].split(":")
+      PortMap(hostId, rh, rp.toInt, lh, lp.toInt)
     }
     map.foreach(master ! _)
   }
@@ -111,21 +118,23 @@ object ReverseProxy {
   }
 
   def main(args: Array[String]) {
+    import TreeCli._
     val config = ConfigFactory.load()
-    args(0) match {
-      case "server" =>
-        startServer(config.getConfig("wannagent.reverseproxy.server").withFallback(config.getConfig("wannagent.reverseproxy")).withFallback(ConfigFactory.defaultReference()))
-      case "client" =>
-        startClient(config.getConfig("wannagent.reverseproxy.client").withFallback(ConfigFactory.defaultReference()))
-      case "testserver" =>
-        startTest(config)
-    }
+    new TreeCli(
+      Map(
+        "server" -> startServer(config.getConfig("wannagent.reverseproxy.server").withFallback(config.getConfig("wannagent.reverseproxy")).withFallback(ConfigFactory.defaultReference())),
+        "client" -> startClient(config.getConfig("wannagent.reverseproxy.client").withFallback(config.getConfig("wannagent.reverseproxy")).withFallback(ConfigFactory.defaultReference())),
+        "testserver" -> startTest(config)
+      )
+    ) resolve (args)
+
   }
 }
 
 object ClientSide {
 
-  class ClientWorker2Server(val serverAddr: InetSocketAddress, tunnel: Tunnel, realConn: ActorRef) extends Actor with ActorLogging {
+  class ClientWorker2Server(val serverAddr: InetSocketAddress, tunnel: Tunnel, realConn: ActorRef) extends Actor with ActorLogging with Stash {
+    //val log = Logging(context.system.eventStream, "akka")
     implicit val as = context.system
     IO(Tcp) ! Tcp.Connect(serverAddr)
     private var server: ActorRef = null
@@ -136,7 +145,10 @@ object ClientSide {
         server ! Tcp.Register(self)
         server ! Tcp.Write(tunnel.pickle)
         context.become(work)
+        unstashAll()
         log.info("worker2server initialized")
+      case e =>
+        stash()
     }
 
     def work: Receive = {
@@ -144,9 +156,12 @@ object ClientSide {
         realConn ! ServerData(data)
       case ClientData(data) =>
         server ! Tcp.Write(data)
-        log.info(s"client send data to server: ${data.utf8String}")
+        if (log.isDebugEnabled)
+          log.debug(s"client send data to server: ${data.utf8String}")
       case PeerClosed =>
         context.stop(self)
+      case e =>
+        log.error(s"unkonwn msg: ${e}")
     }
 
     override def postStop(): Unit = {
@@ -156,17 +171,18 @@ object ClientSide {
 
   }
 
-  class ClientWorker(localPort: Int, serverAddr: InetSocketAddress, tunnel: Tunnel) extends Actor with ActorLogging {
+  class ClientWorker(host: String, localPort: Int, serverAddr: InetSocketAddress, tunnel: Tunnel) extends Actor with ActorLogging {
     implicit val as = context.system
-    val localAddr = new InetSocketAddress("127.0.0.1", localPort)
+    val localAddr = new InetSocketAddress(host, localPort)
     IO(Tcp) ! Tcp.Connect(localAddr)
-    var real:ActorRef = _
+    var real: ActorRef = _
     var serverActor: ActorRef = _
 
     def work: Receive = {
       case Received(data) =>
         serverActor ! ClientData(data)
-        log.info(s"real server send data: ${data.utf8String}")
+        if (log.isDebugEnabled)
+          log.debug(s"real server send data: ${data.utf8String}, send to ${serverActor}")
       case ServerData(data) =>
         real ! Tcp.Write(data)
       case PeerClosed =>
@@ -181,7 +197,7 @@ object ClientSide {
       case connected: Tcp.Connected =>
         real = sender()
         real ! Tcp.Register(self)
-        serverActor = context.actorOf(Props(classOf[ClientWorker2Server], serverAddr, tunnel, self))
+        serverActor = context.actorOf(Props(classOf[ClientWorker2Server], serverAddr, tunnel, self), "ws")
         context.watch(serverActor)
         context.become(work)
     }
@@ -202,9 +218,9 @@ object ClientSide {
         def handler: Receive = {
           case Received(data) =>
             Msgs(data) match {
-              case t@Tunnel(_, port, id) =>
-                log.info(s"start to build connection from localhost:${port} to ${serverHost}:${serverPort}")
-                context.watch(context.actorOf(Props(classOf[ClientWorker], port, serverAddr, t), "worker_" + System.currentTimeMillis()))
+              case t@Tunnel(_, host, port, id) =>
+                log.info(s"start to build connection from ${host}:${port} to ${serverHost}:${serverPort}")
+                context.watch(context.actorOf(Props(classOf[ClientWorker], host, port, serverAddr, t), "worker_" + System.currentTimeMillis()))
             }
           case Terminated(actor) =>
             log.info(s"${actor} stopped")
@@ -228,7 +244,7 @@ object ClientSide {
 
 object ServerSide {
 
-  case class NewConnection(hostId: String, port: Int)
+  case class NewConnection(hostId: String, clientHost: String, clientPort: Int)
 
   class ClientsConnection(remote: ActorRef) extends Actor with ActorLogging with Stash {
 
@@ -256,7 +272,8 @@ object ServerSide {
         def worker: Receive = {
           case Received(data) =>
             front ! ServerData(data)
-            log.info(s"server receive data: ${data.utf8String}")
+            if (log.isDebugEnabled)
+              log.debug(s"server receive data: ${data.utf8String}")
           case ClientData(data) =>
             remote ! Tcp.Write(data)
           case PeerClosed =>
@@ -265,7 +282,6 @@ object ServerSide {
         context.become(worker)
       case e: Received =>
         stash()
-        log.error(s"maybe here missing msg: ${e}")
       case e =>
         log.error(s"unkown msg: ${e}")
     }
@@ -286,14 +302,14 @@ object ServerSide {
     var hostId2Client = Map[String, ActorRef]()
 
     def addAddr(pm: PortMap): Unit = {
-      hostId2addr +^= (pm.remoteHost -> pm)
+      hostId2addr +^= (pm.hostId -> pm)
     }
 
     def enableClient(hostId: String)(implicit af: ActorRefFactory): Unit = {
       hostId2addr.get(hostId).get.foreach { pm =>
         val addr = pm.localAddr
         if (!addr2Server.contains(addr)) {
-          addr2Server += addr -> af.actorOf(Props(classOf[Server], pm.remoteHost, pm.remotePort, new InetSocketAddress(pm.localHost, pm.localPort)))
+          addr2Server += addr -> af.actorOf(Props(classOf[Server], pm.hostId, pm.remoteHost, pm.remotePort, new InetSocketAddress(pm.localHost, pm.localPort)))
         }
       }
     }
@@ -319,10 +335,10 @@ object ServerSide {
       id
     }
 
-    def newConnectionRequest(addrMan: AddrManager, hostId: String, port: Int, server: ActorRef) = {
+    def newConnectionRequest(addrMan: AddrManager, hostId: String, clientHost: String, clientPort: Int, server: ActorRef) = {
       val id = newId
       requests += id -> server
-      addrMan.sendMsg2Client(hostId, Tunnel(hostId, port, id))
+      addrMan.sendMsg2Client(hostId, Tunnel(hostId, clientHost, clientPort, id))
     }
 
     def newConnectionResp(tunnel: Tunnel, conn: ActorRef): Unit = {
@@ -353,14 +369,14 @@ object ServerSide {
         sender() ! Register(clientConn)
         context.watch(clientConn)
 
-      case pm@PortMap(rh, rp, lh, lp) =>
+      case pm: PortMap =>
         addrManager.addAddr(pm)
 
       case ClientId(hostId) =>
         addrManager.updateClientMan(hostId, sender())(context)
 
-      case NewConnection(hostId, port) =>
-        connBuilder.newConnectionRequest(addrManager, hostId, port, sender())
+      case NewConnection(hostId, clientHost, clientPort) =>
+        connBuilder.newConnectionRequest(addrManager, hostId, clientHost, clientPort, sender())
 
       case t: Tunnel =>
         connBuilder.newConnectionResp(t, sender())
@@ -372,7 +388,7 @@ object ServerSide {
     }
   }
 
-  class Server(hostId: String, port: Int, addr: InetSocketAddress) extends Actor with ActorLogging {
+  class Server(hostId: String, clientHost: String, clinetPort: Int, addr: InetSocketAddress) extends Actor with ActorLogging {
     implicit val as = context.system
     IO(Tcp) ! Tcp.Bind(self, addr)
 
@@ -383,7 +399,7 @@ object ServerSide {
         log.error(s"bound failed ${bf}")
         context stop self
       case c@Connected(remote, local) =>
-        val conn = AkkaUtil.waitRes[ActorRef](context.parent, NewConnection(hostId, port), 10)
+        val conn = AkkaUtil.waitRes[ActorRef](context.parent, NewConnection(hostId, clientHost, clinetPort), 10)
         val frontWorker = context.actorOf(Props(classOf[FrontConnection], sender(), conn))
         conn ! frontWorker
         sender() ! Register(frontWorker)
@@ -404,10 +420,12 @@ object ServerSide {
     override def receive: Actor.Receive = {
       case Received(data) =>
         remote ! ClientData(data)
-        log.info(s"send 2 remote: ${data.utf8String}")
+        if (log.isDebugEnabled)
+          log.debug(s"send to remote: ${data.utf8String}")
       case ServerData(data) =>
         client ! Tcp.Write(data)
-        log.info(s"send 2 client: ${data.utf8String}")
+        if (log.isDebugEnabled)
+          log.debug(s"send to client: ${data.utf8String}")
       case PeerClosed =>
         remote ! PeerClosed
         context.stop(self)
