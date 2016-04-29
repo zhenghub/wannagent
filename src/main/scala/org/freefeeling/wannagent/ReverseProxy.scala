@@ -25,6 +25,8 @@ import scala.pickling.binary._
 import scala.pickling.Defaults._
 import akka.pattern._
 
+import scala.util.{Success, Failure, Try}
+
 /**
   * Created by zhenghu on 16-3-12.
   */
@@ -42,6 +44,7 @@ object ReverseProxy {
 
   class Logging extends Actor {
     val log = Logging(context.system.eventStream, "akka")
+
     override def receive: Actor.Receive = {
       case Error(cause, logSource, logClass, message) =>
         val causeString = {
@@ -188,6 +191,9 @@ object ClientSide {
       case PeerClosed =>
         context.stop(self)
         log.info(s"stop connection ${self}")
+      case e: ErrorClosed =>
+        context.stop(self)
+        log.info(s"stop connection ${self} because of ${e}")
       case t: Terminated =>
         context.stop(self)
         log.info(s"stop connection ${self}")
@@ -219,7 +225,7 @@ object ClientSide {
           case Received(data) =>
             Msgs(data) match {
               case t@Tunnel(_, host, port, id) =>
-                log.info(s"start to build connection from ${host}:${port} to ${serverHost}:${serverPort}")
+                log.info(s"start to build connection between ${host}:${port} and ${serverHost}:${serverPort}")
                 context.watch(context.actorOf(Props(classOf[ClientWorker], host, port, serverAddr, t), "worker_" + System.currentTimeMillis()))
             }
           case Terminated(actor) =>
@@ -259,7 +265,7 @@ object ServerSide {
             context.parent ! msg
             context.become(clientMan)
           case newTunnel: Tunnel =>
-            log.info(s"client worker connection ${newTunnel.id}/${newTunnel.hostId}:${newTunnel.clientPort} activated")
+            log.info(s"client worker connection ${newTunnel.id}/${newTunnel.hostId}[${newTunnel.clientHost}:${newTunnel.clientPort}] activated")
             context.parent ! newTunnel
             context.become(preWork)
         }
@@ -309,7 +315,7 @@ object ServerSide {
       hostId2addr.get(hostId).get.foreach { pm =>
         val addr = pm.localAddr
         if (!addr2Server.contains(addr)) {
-          addr2Server += addr -> af.actorOf(Props(classOf[Server], pm.hostId, pm.remoteHost, pm.remotePort, new InetSocketAddress(pm.localHost, pm.localPort)))
+          addr2Server += addr -> af.actorOf(Props(classOf[Server], pm.hostId, pm.remoteHost, pm.remotePort, new InetSocketAddress(pm.localHost, pm.localPort)), s"client_${System.currentTimeMillis()}")
         }
       }
     }
@@ -388,23 +394,47 @@ object ServerSide {
     }
   }
 
+  /**
+    * Server connected with specific remote client.
+    * When it receive a connection, it will request the client to build a connection,
+    * however if failed it will close the income connection. It will also close itself if it has no connection children.
+    *
+    * @param hostId
+    * @param clientHost
+    * @param clinetPort
+    * @param addr
+    */
   class Server(hostId: String, clientHost: String, clinetPort: Int, addr: InetSocketAddress) extends Actor with ActorLogging {
     implicit val as = context.system
     IO(Tcp) ! Tcp.Bind(self, addr)
+
+    def stopServer = {
+      context stop self
+    }
 
     override def receive: Receive = {
       case b@Bound(localAddress) =>
         log.info(s"server bound to ${localAddress}")
       case CommandFailed(bf: Bind) =>
         log.error(s"bound failed ${bf}")
-        context stop self
+        stopServer
       case c@Connected(remote, local) =>
-        val conn = AkkaUtil.waitRes[ActorRef](context.parent, NewConnection(hostId, clientHost, clinetPort), 10)
-        val frontWorker = context.actorOf(Props(classOf[FrontConnection], sender(), conn))
-        conn ! frontWorker
-        sender() ! Register(frontWorker)
-        context.watch(frontWorker)
-        log.info(s"${addr}'s current connections: ${context.children.size}")
+        Try {
+          AkkaUtil.waitRes[ActorRef](context.parent, NewConnection(hostId, clientHost, clinetPort), 10)
+        } match {
+          case Failure(e) =>
+            log.error(e, "errored when request a connection to client, it won't register the incoming connection")
+            if(context.children.isEmpty) {
+              stopServer
+            }
+          case Success(conn) =>
+            val frontWorker = context.actorOf(Props(classOf[FrontConnection], sender(), conn))
+            conn ! frontWorker
+            sender() ! Register(frontWorker)
+            context.watch(frontWorker)
+            log.info(s"${addr}'s current connections: ${context.children.size}")
+        }
+
       case Terminated(actorRef) =>
         log.info(s"${actorRef} stopped")
         log.info(s"${addr}'s current connections: ${context.children.size}")
