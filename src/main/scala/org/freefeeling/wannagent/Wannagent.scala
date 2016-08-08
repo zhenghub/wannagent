@@ -7,9 +7,10 @@ import org.freefeeling.wannagent.common.TreeCli
   */
 object Wannagent {
 
-  val cli = new TreeCli( Map(
+  val cli = new TreeCli(Map(
     "proxyserver" -> ProxyServer.main _,
-    "reverse" -> ReverseProxy.main _
+    "reverse" -> ReverseProxy.main _,
+    "baseproxy" -> BaseServer.main _
   ))
 
   def main(args: Array[String]): Unit = {
