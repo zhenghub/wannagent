@@ -35,6 +35,8 @@ class SecureRemoteConnection (proxy: ActorRef, addr: InetSocketAddress) extends 
     case Received(data) =>
       logger.debug(s"recieved response from ${addr}")
       this.proxy ! Response(data)
+    case o =>
+      logger.error(s"unkown message: ${o}")
   }
 }
 
