@@ -5,10 +5,14 @@ import java.net.InetSocketAddress
 import akka.actor.{ActorSystem, ActorRef, Props, Actor}
 import akka.io.Tcp._
 import akka.io.{Tcp, IO}
+import akka.stream.ActorMaterializer
+import akka.stream.scaladsl.{Keep, Flow, Source}
+import akka.stream.scaladsl.Tcp.{ServerBinding, IncomingConnection}
 import org.freefeeling.wannagent.RemoteConnection.Response
 import org.log4s._
 import spray.http.{HttpMethods, HttpProtocol, HttpProtocols}
 
+import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -131,7 +135,7 @@ object BaseServer {
     }
   }
 
-  def main(args: Array[String]): Unit = {
+  def actorVersion(args: Array[String]): Unit = {
     val actorSystem = ActorSystem("tunnel")
     val port = args(0).toInt
     val (remoteHost, remotePort) = {
@@ -140,5 +144,27 @@ object BaseServer {
     }
     actorSystem.actorOf(Props(classOf[ProxyServer], new InetSocketAddress(port), new InetSocketAddress(remoteHost, remotePort)))
   }
+
+  def streamVersion(args: Array[String]): Unit = {
+    implicit val actorSystem = ActorSystem("tunnel")
+    implicit val materializer = ActorMaterializer()
+    val port = args(0).toInt
+    val (remoteHost, remotePort) = {
+      val remote = args(1).split(":")
+      (remote(0),remote(1).toInt)
+    }
+    val connections: Source[IncomingConnection, Future[ServerBinding]] =
+      akka.stream.scaladsl.Tcp().bind("0.0.0.0", port)
+    connections runForeach { connection =>
+      val remote = akka.stream.scaladsl.Tcp().outgoingConnection(remoteHost, remotePort)
+      val graph = connection.flow.joinMat(remote)(Keep.right)
+      graph.run()
+    }
+  }
+
+  def main(args: Array[String]) {
+    streamVersion(args)
+  }
+
 
 }

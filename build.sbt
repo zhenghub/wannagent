@@ -1,6 +1,6 @@
 name := "wannagent"
 version := "0.0.1-SNAPSHOT"
-scalaVersion := "2.10.5"
+scalaVersion := "2.11.8"
 
 val k = settingKey[File]("test file")
 
@@ -23,12 +23,13 @@ val k = settingKey[File]("test file")
 //}
 
 val sprayVersion = "1.3.3"
-val akkaVersion = "2.3.14"
+val akkaVersion = "2.4.9"
 
 lazy val dependencies = Seq(
   "com.typesafe.akka" %% "akka-actor" % akkaVersion,
   "com.typesafe.akka" %% "akka-remote" % akkaVersion,
   "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
+  "com.typesafe.akka" %% "akka-stream" % akkaVersion,
 
   "org.scala-lang.modules" %% "scala-pickling" % "0.10.1",
   "org.scalatest" %% "scalatest" % "2.2.4" % Test,
