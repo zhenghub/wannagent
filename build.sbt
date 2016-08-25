@@ -12,6 +12,7 @@ lazy val dependencies = Seq(
   "com.typesafe.akka" %% "akka-remote" % akkaVersion,
   "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
   "com.typesafe.akka" %% "akka-stream" % akkaVersion,
+  "com.typesafe.akka" %% "akka-http-experimental" % akkaVersion,
 
   "org.scala-lang.modules" %% "scala-pickling" % "0.10.1",
   "org.scalatest" %% "scalatest" % "2.2.4" % Test,

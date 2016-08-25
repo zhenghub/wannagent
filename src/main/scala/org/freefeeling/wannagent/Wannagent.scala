@@ -10,7 +10,8 @@ object Wannagent {
   val cli = new TreeCli(Map(
     "proxyserver" -> ProxyServer.main _,
     "reverse" -> ReverseProxy.main _,
-    "baseproxy" -> BaseServer.main _
+    "baseproxy" -> BaseServer.main _,
+    "websocket" -> WebSocketClient.main _
   ))
 
   def main(args: Array[String]): Unit = {
