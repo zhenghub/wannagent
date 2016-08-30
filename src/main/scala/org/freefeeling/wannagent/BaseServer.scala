@@ -13,6 +13,7 @@ import akka.stream.TLSProtocol.{SessionBytes, SendBytes}
 import akka.stream.scaladsl.{TLS, Keep, Flow, Source}
 import akka.stream.scaladsl.Tcp.{ServerBinding, IncomingConnection}
 import akka.util.ByteString
+import com.typesafe.config.ConfigFactory
 import org.freefeeling.wannagent.RemoteConnection.Response
 import org.log4s._
 import spray.http.{HttpMethods, HttpProtocol, HttpProtocols}
@@ -155,37 +156,41 @@ object BaseServer {
   }
 
   def streamVersion(args: Array[String]): Unit = {
+    import scala.collection.convert.wrapAsScala._
     implicit val actorSystem = ActorSystem("tunnel")
     implicit val materializer = ActorMaterializer()
-    val port = args(0).toInt
-    val (remoteHost, remotePort) = {
-      val remote = args(1).split(":")
-      (remote(0), remote(1).toInt)
-    }
-    val sslStage = {
-      val isSsl = args.length > 1 && args(1) == "ssl"
-      if(isSsl) {
-        val password = args(2).toArray
-        val keystore = new FileInputStream(args(3))
-        val stage = Some(sslLayer(password, keystore))
-        keystore.close()
-        stage
-      } else None
-    }
-
-    val connections: Source[IncomingConnection, Future[ServerBinding]] =
-      akka.stream.scaladsl.Tcp().bind("0.0.0.0", port)
-    connections runForeach { connection =>
-      val remote = akka.stream.scaladsl.Tcp().outgoingConnection(remoteHost, remotePort)
-
-      val graph = sslStage match {
-        case Some(ssl) =>
-          val sslFlow = Flow[ByteString].map(SendBytes).via(ssl.join(connection.flow)).collect { case x: SessionBytes ⇒ x.bytes }
-          sslFlow.joinMat(remote)(Keep.right)
-        case None =>
-          connection.flow.joinMat(remote)(Keep.right)
+    val config = Configuration.defaultConfig().getConfig("redirector")
+    val servers = config.getConfigList("servers").foreach { server =>
+      val port = server.getInt("port")
+      val (remoteHost, remotePort) = {
+        val remote = server.getString("redirectTo").split(":")
+        (remote(0), remote(1).toInt)
       }
-      graph.run()
+      val sslStage = {
+        val isSsl = server.hasPath("inconnection.enablessl") && server.getBoolean("inconnection.enablessl")
+        if (isSsl) {
+          val password = server.getString("inconnection.password").toArray
+          val keystore = new FileInputStream(server.getString("inconnection.keystorefile"))
+          val stage = Some(sslLayer(password, keystore))
+          keystore.close()
+          stage
+        } else None
+      }
+
+      val connections: Source[IncomingConnection, Future[ServerBinding]] =
+        akka.stream.scaladsl.Tcp().bind("0.0.0.0", port)
+      connections runForeach { connection =>
+        val remote = akka.stream.scaladsl.Tcp().outgoingConnection(remoteHost, remotePort)
+
+        val graph = sslStage match {
+          case Some(ssl) =>
+            val sslFlow = Flow[ByteString].map(SendBytes).via(ssl.join(connection.flow)).collect { case x: SessionBytes ⇒ x.bytes }
+            sslFlow.joinMat(remote)(Keep.right)
+          case None =>
+            connection.flow.joinMat(remote)(Keep.right)
+        }
+        graph.run()
+      }
     }
   }
 
@@ -216,6 +221,5 @@ object BaseServer {
   def main(args: Array[String]) {
     streamVersion(args)
   }
-
 
 }
