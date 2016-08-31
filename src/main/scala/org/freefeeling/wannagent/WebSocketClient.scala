@@ -35,7 +35,7 @@ object WebSocketClient {
       val ext = Http()
 
       val sslCtxt = if (server.hasPath("outconnection.enablessl") && server.getBoolean("outconnection.enablessl"))
-        Some(ext.createClientHttpsContext(AkkaSSLConfig().withSettings(SSLConfigFactory.parse(server.getConfig("outconnection.ssl-config").withFallback(system.settings.config.getConfig("ssl-config"))))))
+        Some(ext.createClientHttpsContext(AkkaSSLConfig().withSettings(SSLConfigFactory.parse(server.getConfig("outconnection.ssl-config.ssl").withFallback(system.settings.config.getConfig("ssl-config"))))))
       else None
 
       connections runForeach { connection =>
