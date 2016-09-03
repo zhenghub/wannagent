@@ -41,11 +41,16 @@ object WebSocketClient {
       connections runForeach { connection =>
         // the Future[Done] is the materialized value of Sink.foreach
         // and it is completed when the stream completes
-        val flow = Flow[Message].map { msg =>
+        val flow = Flow[Message].flatMapConcat { msg =>
           msg match {
-            case BinaryMessage.Strict(data) => data
+            case BinaryMessage.Strict(data) =>
+              Source.single(data)
             case TextMessage.Strict(text) =>
-              ByteString(text)
+              Source.single(ByteString(text))
+            case BinaryMessage.Streamed(src) =>
+              src
+            case TextMessage.Streamed(src) =>
+              src.map(ByteString(_))
           }
         }.via(connection.flow).map(BinaryMessage.Strict)
 
