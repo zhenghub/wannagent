@@ -17,7 +17,7 @@ case class HttpRequest(method: HttpMethod = HttpMethods.GET,
                        protocol: HttpProtocol = HttpProtocols.`HTTP/1.1`)
 
 
-class RequestParser(config: Config) {
+class RequestParser {
   //  val parser = HttpRequestParser(config)
 
   def parseRequest(coded: ByteString) = {

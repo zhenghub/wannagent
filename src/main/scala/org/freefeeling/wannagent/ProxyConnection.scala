@@ -22,7 +22,7 @@ class ProxyConnection(remoteAddr: InetSocketAddress) extends Actor with ActorLog
   var remote: Option[ActorRef] = None
   implicit val system = context.system
 
-  val parser = new RequestParser(system.settings.config)
+  val parser = new RequestParser
 
   def extractMethodAndHost(request: HttpRequestWithOrigin) = {
     request match {

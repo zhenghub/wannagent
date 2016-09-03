@@ -11,7 +11,8 @@ object Wannagent {
     "proxyserver" -> ProxyServer.main _,
     "reverse" -> ReverseProxy.main _,
     "baseproxy" -> BaseServer.main _,
-    "websocket" -> WebSocketClient.main _
+    "websocket" -> WebSocketClient.main _,
+    "newproxyserver" -> NewProxyServer.main _
   ))
 
   def main(args: Array[String]): Unit = {

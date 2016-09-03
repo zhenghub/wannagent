@@ -31,7 +31,7 @@ class RemoteConnection(proxy: ActorRef, private var addr: InetSocketAddress, pri
       context.become(transfer)
   }
 
-  val parser = new RequestParser(system.settings.config)
+  val parser = new RequestParser
 
   def handleRequest(origin: HttpRequestWithOrigin) = {
     Option(origin.request.uri) match {
@@ -40,8 +40,8 @@ class RemoteConnection(proxy: ActorRef, private var addr: InetSocketAddress, pri
           uri = absoluteUri.toRelative
 //          headers = (origin.request.headers ::: `Cache-Control`(Seq(`max-age`(0))) :: Nil)
         )
-        val render = RequestRender(context.system.settings.config)
-        render.renderRequest(newRequest, addr)
+        val render = RequestRender()
+        render.renderRequest(newRequest)
       case None =>
         origin.origin
     }

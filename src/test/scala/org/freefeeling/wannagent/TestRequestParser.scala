@@ -77,7 +77,7 @@ class TestRequestParser extends WordSpec {
     "parse a common request" should {
       "recognize the host" in {
         val originBytes = mockRequest(request1)
-        val parsedRequest = new RequestParser(null).parseRequest(originBytes)
+        val parsedRequest = new RequestParser().parseRequest(originBytes)
         assert(parsedRequest.host == new InetSocketAddress("tiles.services.mozilla.com", 443))
         assert("tiles.services.mozilla.com:443" == Uri("tiles.services.mozilla.com:443").host.get)
         assert("something.com:80" == Uri("http://something.com:80").host.get)
@@ -90,27 +90,27 @@ class TestRequestParser extends WordSpec {
     "parse a melpa request" should {
       "recognize the url" in {
         val originBytes = mockRequest(melpaGet)
-        assertResult("/packages/")(new RequestParser(null).parseRequest(originBytes).request.uri.path)
+        assertResult("/packages/")(new RequestParser().parseRequest(originBytes).request.uri.path)
       }
     }
 
     "parse a connect request" should {
       "handle the uri" in {
         val bytes = mockRequest(connectRequest)
-        val request = new RequestParser(null).parseRequest(bytes)
+        val request = new RequestParser().parseRequest(bytes)
         assert(request.request.uri.toRelative.path == Uri./.path)
 
         {
-          val playUri = new RequestParser(null).parseRequest(mockRequest(youkuPlay)).request.uri.toRelative
+          val playUri = new RequestParser().parseRequest(mockRequest(youkuPlay)).request.uri.toRelative
           assertResult("/playpolicy/get.json?vid_encode=XMTQzOTQzMzM2MA==&category=85&caller=PLAYER")(playUri.path.get + "?" + playUri.args.get)
         }
       }
       "get the host in connect line" in {
         val bytes = mockRequest(noPortHttpsConnRequest)
-        val request = new RequestParser(null).parseRequest(bytes)
+        val request = new RequestParser().parseRequest(bytes)
         assert(request.host == new InetSocketAddress("www.baidu.com", 443))
 
-        assert(new RequestParser(null).parseRequest(mockRequest(youku)).host == new InetSocketAddress("youku.com", 80))
+        assert(new RequestParser().parseRequest(mockRequest(youku)).host == new InetSocketAddress("youku.com", 80))
       }
     }
   }

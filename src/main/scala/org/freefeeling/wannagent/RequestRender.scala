@@ -9,11 +9,11 @@ import spray.http.{HttpEntity}
 /**
   * Created by zh on 15-12-27.
   */
-class RequestRender(config: Config) {
+class RequestRender {
 
   val CrLf = ByteString("\r\n")
 
-  def renderRequest(request: HttpRequest, remote: InetSocketAddress) = {
+  def renderRequest(request: HttpRequest) = {
     var res = ByteString(request.method + " " + request.uri + " " + request.protocol + "\r\n")
     request.headers.foreach { header =>
       res ++= ByteString(header.name)
@@ -34,7 +34,7 @@ class RequestRender(config: Config) {
 }
 
 object RequestRender {
-  def apply(config: Config) = {
-    new RequestRender(config)
+  def apply() = {
+    new RequestRender
   }
 }
