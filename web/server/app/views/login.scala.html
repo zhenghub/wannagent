@@ -1,0 +1,24 @@
+@import play.api.i18n.Messages
+@(loginForm: Form[controllers.Models.AdminData])(implicit messages: Messages)
+<!DOCTYPE html>
+
+<html>
+<head>
+    <title>Login</title>
+</head>
+<body>
+
+@helper.form(controllers.routes.Login.authenticate) {
+
+<h1>log in</h1>
+@helper.inputText(loginForm("username"))
+@helper.inputPassword(loginForm("password"))
+
+<p>
+    <button type="submit" id="loginbutton">Login</button>
+</p>
+
+}
+
+</body>
+</html>
