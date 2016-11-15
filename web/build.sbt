@@ -13,10 +13,13 @@ lazy val client: Project = (project in file("client"))
     scalaVersion := Settings.versions.scala,
     scalacOptions ++= Settings.scalacOptions,
     libraryDependencies ++= Seq(
+      "be.doeraene" %%% "scalajs-jquery" % "0.9.0",
+      "com.lihaoyi" %%% "scalatags" % "0.6.0",
+      "com.lihaoyi" %%% "scalarx" % "0.3.1",
       "com.github.karasiq" %%% "scalajs-bootstrap" % "1.1.2"
     )
   )
-  .enablePlugins(ScalaJSPlugin, ScalaJSPlay)
+  .enablePlugins(ScalaJSPlugin, ScalaJSWeb)
 //.dependsOn(sharedJS)
 
 // Client projects (just one in this case)
@@ -33,10 +36,10 @@ lazy val server = (project in file("server"))
     //commands += ReleaseCmd,
     // connect to the client project
     scalaJSProjects := clients
-    //pipelineStages := Seq(scalaJSProd, digest, gzip),
+      pipelineStages in Assets := Seq (scalaJSPipeline)
     // compress CSS
     //LessKeys.compress in Assets := true
   )
-  .enablePlugins(PlayScala)
+  .enablePlugins(PlayScala, SbtWeb)
   .aggregate(clients.map(projectToRef): _*)
 //.dependsOn(sharedJVM)

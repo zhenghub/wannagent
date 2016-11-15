@@ -17,4 +17,8 @@ class Application extends Controller {
     Ok(views.html.index())
   }
 
+  def table = Action {
+    Ok(views.html.table())
+  }
+
 }
