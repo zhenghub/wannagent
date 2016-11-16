@@ -1,4 +1,5 @@
 import sbt._
+import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport._
 
 object Settings {
   val name = "wannagent-web"
@@ -6,7 +7,9 @@ object Settings {
 
   object versions {
     val scala = "2.11.8"
-    val playScripts = "0.4.0"
+    val scalajsScripts = "1.0.0"
+    val autowire = "0.2.5"
+    val booPickle = "1.2.5"
   }
 
   /** Options for the scala compiler */
@@ -17,9 +20,14 @@ object Settings {
     "-feature"
   )
 
+  val sharedDependencies = Def.setting(Seq(
+    "com.lihaoyi" %%% "autowire" % versions.autowire,
+    "me.chrons" %%% "boopickle" % versions.booPickle
+  ))
+
   /** Dependencies only used by the JVM project */
   val jvmDependencies = Def.setting(Seq(
-    "com.vmunier" %% "play-scalajs-scripts" % versions.playScripts,
+    "com.vmunier" %% "scalajs-scripts" % versions.scalajsScripts,
     "jp.t2v" %% "play2-auth"        % "0.14.2",
     play.sbt.Play.autoImport.cache
   ))
