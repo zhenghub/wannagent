@@ -1,8 +1,9 @@
-package org.freefeeling.wannagent
+package org.freefeeling.wannagent.http
 
 import java.net.InetSocketAddress
 
 import akka.util.ByteString
+import org.freefeeling.wannagent.http.HttpThings.HttpRequest
 
 /**
   * Created by zh on 15-12-13.

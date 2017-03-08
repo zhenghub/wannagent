@@ -1,4 +1,4 @@
-package org.freefeeling.wannagent
+package org.freefeeling.wannagent.http
 
 import java.util.regex.Pattern
 
@@ -10,7 +10,7 @@ class Uri(val scheme: Option[String], val host: Option[String], val path: Option
   def toRelative =
     Uri(None, None, if (path.isEmpty) Option("/") else path, args)
 
-  override def toString = s"${scheme.map(_ + "//").getOrElse("")}${host.getOrElse("")}${path.getOrElse("")}${args.map("?" + _).getOrElse("")}"
+  override def toString = s"${scheme.map(_ + "://").getOrElse("")}${host.getOrElse("")}${path.getOrElse("")}${args.map("?" + _).getOrElse("")}"
 }
 
 object Uri {

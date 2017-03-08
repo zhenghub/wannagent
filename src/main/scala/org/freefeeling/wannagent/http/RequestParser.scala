@@ -1,30 +1,24 @@
-package org.freefeeling.wannagent
+package org.freefeeling.wannagent.http
 
 import akka.util.ByteString
-import com.typesafe.config.Config
-import spray.http.HttpHeaders.RawHeader
-import spray.http.{HttpRequest => dhr, _}
+import org.freefeeling.wannagent.http.HttpThings._
+import org.freefeeling.wannagent.http
 
 import scala.annotation.tailrec
 
 /**
   * Created by zh on 15-12-20.
   */
-case class HttpRequest(method: HttpMethod = HttpMethods.GET,
-                       uri: Uri = Uri./,
-                       headers: List[HttpHeader] = Nil,
-                       entity: HttpEntity = HttpEntity.Empty,
-                       protocol: HttpProtocol = HttpProtocols.`HTTP/1.1`)
 
 
-class RequestParser {
+object RequestParser {
   //  val parser = HttpRequestParser(config)
 
   def parseRequest(coded: ByteString) = {
     //    parser.parseRequest(coded)
     val res = new StateRequestParser(coded)
     res.parseRequest()
-    HttpRequestWithOrigin(coded, org.freefeeling.wannagent.HttpRequest(res.method, res.uri, res.headers, res.entity, res.protocol))
+    HttpRequestWithOrigin(coded, HttpRequest(res.method, res.protocol, res.uri, res.headers, res.entity))
   }
 }
 
@@ -32,6 +26,29 @@ object StateRequestParser extends Enumeration {
   val INIT, R1, N1, R2, END = Value
 
   def trans(status: Value, ch: Byte) = {
+    //    status match {
+    //      case INIT =>
+    //        ch match {
+    //          case '\r' => R1
+    //          case _ => INIT
+    //        }
+    //      case R1 =>
+    //        ch match {
+    //          case '\n' => N1
+    //          case _ => INIT
+    //        }
+    //      case N1 =>
+    //        ch match {
+    //          case '\r' => R2
+    //          case _ => INIT
+    //        }
+    //      case R2 =>
+    //        ch match {
+    //          case '\n' => END
+    //          case _ => INIT
+    //        }
+    //
+    //    }
     ch match {
       case '\r' =>
         status match {
@@ -81,14 +98,14 @@ class StateRequestParser(coded: ByteString) {
         val prop = origin.slice(lastSep + 1, idx).utf8String
         propIdx match {
           case 0 =>
-            method = HttpMethods.getForKey(prop.toUpperCase()).get
+            method = HttpMethods(prop.toUpperCase())
           case 1 =>
             if (method == HttpMethods.CONNECT) {
-              headers = headers :+ RawHeader("Host", prop)
+              headers = headers :+ HttpHeader("Host", prop)
             }
             uri = if (method == HttpMethods.CONNECT) Uri./ else Uri(prop)
           case 2 =>
-            protocol = HttpProtocols.getForKey(prop.toUpperCase).get
+            protocol = HttpProtocols(prop.toUpperCase)
           case _ =>
         }
         propIdx += 1
@@ -132,12 +149,7 @@ class StateRequestParser(coded: ByteString) {
           case ':' =>
             val prop = trim(coded, start, idx)
             if (method != HttpMethods.CONNECT || prop != "Host") {
-              val newHeader = prop match {
-                case "Proxy-Connection" =>
-                  RawHeader("Connection", trim(coded, idx + 1, lineEnd))
-                case _ =>
-                  RawHeader(prop, trim(coded, idx + 1, lineEnd))
-              }
+              val newHeader = HttpHeader(prop, trim(coded, idx + 1, lineEnd))
               headers = headers :+ newHeader
             }
             return
@@ -154,7 +166,7 @@ class StateRequestParser(coded: ByteString) {
       status = trans(status, coded(idx))
       status match {
         case END =>
-          entity = HttpEntity(if (coded.size > idx + 1) coded.drop(idx + 1).toArray else new Array[Byte](0))
+          entity = if (coded.size > idx + 1) Iterator.single(ByteString(coded.drop(idx + 1).toArray)) else Iterator.empty
           return
         case N1 =>
           lineParser.endOfLine(idx)
