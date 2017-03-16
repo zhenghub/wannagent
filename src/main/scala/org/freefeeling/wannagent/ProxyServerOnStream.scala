@@ -148,10 +148,6 @@ object ProxyServerOnStream {
 
   def proxyFlow(implicit as: ActorSystem, am: ActorMaterializer) = proxy(outgoingConnectionFlow)
 
-  def main(args: Array[String]) {
-    runProxy
-  }
-
   def runProxy = {
     implicit val as = ActorSystem("proxy")
     implicit val am = ActorMaterializer()

@@ -6,6 +6,6 @@ package org.freefeeling.wannagent
 object Wannagent {
 
   def main(args: Array[String]): Unit = {
-
+    ProxyServerOnStream.runProxy
   }
 }
