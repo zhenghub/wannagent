@@ -148,12 +148,12 @@ object ProxyServerOnStream {
 
   def proxyFlow(implicit as: ActorSystem, am: ActorMaterializer) = proxy(outgoingConnectionFlow)
 
-  def runProxy = {
+  def runProxy(listenAddress: InetSocketAddress) = {
     implicit val as = ActorSystem("proxy")
     implicit val am = ActorMaterializer()
 
     val connections: Source[IncomingConnection, Future[ServerBinding]] =
-      akka.stream.scaladsl.Tcp().bind("0.0.0.0", 5686)
+      akka.stream.scaladsl.Tcp().bind(listenAddress.getHostName, listenAddress.getPort)
     val serverGraph = connections.to(Sink.foreach(connection =>   connection.handleWith(proxy(outgoingConnectionFlow))))
     val binding = serverGraph.run()
 

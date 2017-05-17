@@ -12,12 +12,13 @@ lazy val dependencies = Seq(
   "com.typesafe.akka" %% "akka-actor" % akkaVersion withSources(),
   "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
   "com.typesafe.akka" %% "akka-stream" % akkaVersion withSources(),
+  "com.typesafe.akka" %% "akka-stream" % akkaVersion withSources(),
   "org.scala-lang.modules" %% "scala-pickling" % "0.10.1",
   "org.scalatest" %% "scalatest" % "2.2.4" % Test,
   "org.log4s" %% "log4s" % "1.2.1",
   "ch.qos.logback" % "logback-classic" % "1.1.3",
   "org.backuity.clist" %% "clist-core"   % "3.2.2",
-  "org.backuity.clist" %% "clist-macros" % "3.2.2" % "provided"
+  "org.backuity.clist" %% "clist-macros" % "3.2.2"
 )
 
 libraryDependencies ++= dependencies
