@@ -6,7 +6,7 @@ import akka.stream.scaladsl.{Keep, Sink, Source}
 import akka.util.ByteString
 import org.scalatest.FlatSpec
 import org.freefeeling.wannagent.common.Futures._
-import ProxyServerOnStream._
+import HttpProxy._
 import MockRequest._
 import ProxyComponent._
 import org.freefeeling.wannagent.http.HttpProxyProtocol.RequestRender

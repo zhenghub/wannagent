@@ -5,12 +5,12 @@ import java.net.InetSocketAddress
 import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.stream._
-import akka.stream.scaladsl.{BidiFlow, Flow, GraphDSL, Sink, Source}
 import akka.stream.scaladsl.Tcp.{IncomingConnection, ServerBinding}
+import akka.stream.scaladsl.{BidiFlow, Flow, Sink, Source}
 import akka.util.ByteString
 import org.freefeeling.wannagent.http.HttpProxyProtocol.RequestRender
-import org.freefeeling.wannagent.http.HttpThings.HttpMethods
-import org.freefeeling.wannagent.http.{HttpProxyProtocol, HttpRequestWithOrigin, HttpThings, RequestParser}
+import org.freefeeling.wannagent.http.{HttpProxyProtocol, HttpRequestWithOrigin, RequestParser}
+import org.freefeeling.wannagent.modules.ThroughputLogger
 
 import scala.annotation.tailrec
 import scala.collection.immutable
@@ -20,11 +20,19 @@ import scala.concurrent.Future
 /**
   * Created by zh on 16-8-31.
   */
-object ProxyServerOnStream {
+object HttpProxy {
 
 
   def outgoingFlow(address: InetSocketAddress)(implicit system: ActorSystem, materializer: Materializer) = akka.stream.scaladsl.Tcp().outgoingConnection(address.getHostName, address.getPort)
 
+  /**
+    * 返回判断一个ByteString是否以str为前缀的函数
+    *
+    * return a function that judge wheather a ByteString starts with {str}
+    *
+    * @param str
+    * @return
+    */
   def seqMatcher(str: String) = {
     val bs = ByteString(str)
     def isHead(target: ByteString): Boolean = {
@@ -105,6 +113,8 @@ object ProxyServerOnStream {
 
   trait ProxyComponent extends HttpComponent{
     val isConnect = seqMatcher("CONNECT")
+
+    // left means simple connect while right means parse every request and redirect to different target according to the request
     type CONNECT_OTHER = Either[ByteString, ByteString]
 
     val connectStateHandler:() => (ByteString) => immutable.Iterable[CONNECT_OTHER] = () => {
@@ -149,12 +159,13 @@ object ProxyServerOnStream {
   def proxyFlow(implicit as: ActorSystem, am: ActorMaterializer) = proxy(outgoingConnectionFlow)
 
   def runProxy(listenAddress: InetSocketAddress) = {
-    implicit val as = ActorSystem("proxy")
+    implicit val as = ActorSystem("http-proxy")
     implicit val am = ActorMaterializer()
 
     val connections: Source[IncomingConnection, Future[ServerBinding]] =
       akka.stream.scaladsl.Tcp().bind(listenAddress.getHostName, listenAddress.getPort)
-    val serverGraph = connections.to(Sink.foreach(connection =>   connection.handleWith(proxy(outgoingConnectionFlow))))
+    val outgoing = ThroughputLogger.apply().join(proxy(outgoingConnectionFlow))
+    val serverGraph = connections.to(Sink.foreach(connection =>   connection.handleWith(outgoing)))
     val binding = serverGraph.run()
 
   }

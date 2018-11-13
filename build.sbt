@@ -5,7 +5,7 @@ scalaVersion := "2.11.8"
 val k = settingKey[File]("test file")
 
 val sprayVersion = "1.3.3"
-val akkaVersion = "2.4.17"
+val akkaVersion = "2.5.18"
 val akkahttpVersion = "10.0.4"
 
 lazy val dependencies = Seq(
